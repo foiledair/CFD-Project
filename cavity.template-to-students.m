@@ -494,6 +494,8 @@ global u
 % !************************************************************** */
 
 
+u = zeros(imax); % Creates the matrix
+u(end,:) = uinf;    % Sets the value of u on the row along jmax = 1
 
 end
 %************************************************************************
