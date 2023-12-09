@@ -486,16 +486,23 @@ function bndry(~)
 global zero two half imax jmax uinf
 global u
 
-% This applies the cavity boundary conditions
-
+% This applies the cavity boundary condition
 
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
+% u(:,:,1) = pressure
+% u(:,:,2) = u
+% u(:,:,3) = v
 
-u = zeros(imax); % Creates the matrix
-u(end,:) = uinf;    % Sets the value of u on the row along jmax = 1
+% U
+u(end,:,2) = uinf;      % Flow
+u(:,1,2) = 0;           % No flow through walls
+u(:,end,2) = 0;         % No flow through walls
+
+% V
+u(1,:,3) = 0;           % No flow through walls
 
 end
 %************************************************************************
@@ -842,6 +849,8 @@ function [dtmin] = compute_time_step(dtmin)
 global four half fourth
 global vel2ref rmu rho dx dy cfl rkappa imax jmax
 global u dt
+
+global dt dtmin
 
 
 % !************************************************************** */
