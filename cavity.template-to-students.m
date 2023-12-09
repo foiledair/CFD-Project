@@ -14,6 +14,7 @@ global imax jmax neq nmax
 global zero tenth sixth fifth fourth third half one two three four six
 global iterout imms isgs irstr ipgorder lim cfl Cx Cy toler rkappa Re pinf uinf rho rhoinv xmin xmax ymin ymax Cx2 Cy2 fsmall
 global rlength rmu vel2ref dx dy rpi phi0 phix phiy phixy apx apy apxy fsinx fsiny fsinxy
+global lambda_x lambda_y lambda_max
 
 %**Use these variables cautiously as these are globally accessible from all functions.**
 
@@ -497,12 +498,12 @@ global u
 % u(:,:,3) = v
 
 % U
-u(end,:,2) = uinf;      % Flow
-u(:,1,2) = 0;           % No flow through walls
-u(:,end,2) = 0;         % No flow through walls
+u(:,1,2) = uinf;      % Flow
+u(end,:,2) = 0;           % No flow through walls
+u(1,:,2) = 0;         % No flow through walls
 
 % V
-u(1,:,3) = 0;           % No flow through walls
+u(:,end,3) = 0;           % No flow through walls
 
 end
 %************************************************************************
@@ -830,10 +831,10 @@ end
 %************************************************************************
 function [dtmin] = compute_time_step(dtmin)
 %
-%Uses global variable(s): one, two, four, half, fourth
+%Uses global constants: one, two, four, half, fourth
 %Uses global variable(s): vel2ref, rmu, rho, dx, dy, cfl, rkappa, imax, jmax
 %Uses: u
-%To Modify: dt, dtmin
+%To return: dt, dtmin
 
 % i                        % i index (x direction)
 % j                        % j index (y direction)
@@ -852,21 +853,28 @@ global u dt
 
 global dt dtmin
 
-
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
-nu = mu./rho;
-deltat = zeros(imax - 1);
-for xcoord = 2:imax
-    for ycoord = 2:jmax
-        beta = max(u(xcoord, ycoord, 2), rkappa .* uinf.^2);
-        lambdax = 0.5 .* (abs(u(xcoord, ycoord, 2)) + sqrt(u(xcoord, ycoord, 2) + 4.*beta.^2));
-        lambday = 0.5 .* (abs(u(xcoord, ycoord, 3)) + sqrt(u(xcoord, ycoord, 3) + 4.*beta.^2));
-        lambdamax = max(lambdax, lambday);
-        deltatc = min(dx, dy) ./ abs(lambdamax);
+% Local time step
+
+global lambda_x lambda_y lambda_max beta beta2
+lambda_x = zeros(imax - 1);
+lambda_y = lambda_x;
+lambda_max = lambda_x;
+dt = zeros(imax - 2);
+
+nu = rmu./rho;
+for xcoord = 2:imax-1
+    for ycoord = 2:jmax-1
+        beta(xcoord, ycoord) = max(u(xcoord, ycoord, 2), rkappa .* vel2ref);
+        beta2(xcoord, ycoord) = beta(xcoord, ycoord).^2;
+        lambda_x(xcoord, ycoord) = 0.5 .* (abs(u(xcoord, ycoord, 2)) + sqrt(u(xcoord, ycoord, 2) + 4.*beta.^2));
+        lambda_y(xcoord, ycoord) = 0.5 .* (abs(u(xcoord, ycoord, 3)) + sqrt(u(xcoord, ycoord, 3) + 4.*beta.^2));
+        lambda_max(xcoord, ycoord) = max(lambda_x(xcoord, ycoord), lambda_y(xcoord, ycoord));
+        deltatc = min(dx, dy) ./ abs(lambda_max);
         deltatd = (dx.*dy)./(4.*nu);
-        deltat(xcoord, ycoord) = CFL * min(deltatc, deltatd);
+        dt(xcoord, ycoord) = cfl * min(deltatc, deltatd);
     end
 end
 
@@ -900,15 +908,21 @@ global two four six half
 global imax jmax lim rho dx dy Cx Cy Cx2 Cy2 fsmall vel2ref rkappa
 global u
 global artviscx artviscy
+global lambda_x lambda_y lambda_max beta2
 
 
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-
-
-
+S = zeros(length(lambda_x));
+for xcoord = 2:imax-1
+    for ycoord = 2:jmax-1
+        S(xcoord, ycoord) = (((-abs(lambda_x(xcoord, ycoord))*Cx)/ ...
+            (beta2)).*xderiv4p) - (((abs(lambda_y(xcoord,ycoord)).*Cx) ...
+            ./(beta2)).*yderiv4p);
+            % BORKED
+    end
 end
 %************************************************************************
 function SGS_forward_sweep(~)
