@@ -856,8 +856,19 @@ global dt dtmin
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
-
-
+nu = mu./rho;
+deltat = zeros(imax - 1);
+for xcoord = 2:imax
+    for ycoord = 2:jmax
+        beta = max(u(xcoord, ycoord, 2), rkappa .* uinf.^2);
+        lambdax = 0.5 .* (abs(u(xcoord, ycoord, 2)) + sqrt(u(xcoord, ycoord, 2) + 4.*beta.^2));
+        lambday = 0.5 .* (abs(u(xcoord, ycoord, 3)) + sqrt(u(xcoord, ycoord, 3) + 4.*beta.^2));
+        lambdamax = max(lambdax, lambday);
+        deltatc = min(dx, dy) ./ abs(lambdamax);
+        deltatd = (dx.*dy)./(4.*nu);
+        deltat(xcoord, ycoord) = CFL * min(deltatc, deltatd);
+    end
+end
 
 
 end
