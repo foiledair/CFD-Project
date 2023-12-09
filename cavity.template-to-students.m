@@ -498,12 +498,13 @@ global u
 % u(:,:,3) = v
 
 % U
-u(:,1,2) = uinf;      % Flow
-u(end,:,2) = 0;           % No flow through walls
-u(1,:,2) = 0;         % No flow through walls
+u(1,:,2) = uinf;        % Flow
+u(:,end,2) = 0;         % No flow through right wall
+u(:,1,2) = 0;           % No flow through left wall
+u(end,:,2) = 0;         % No flow through bottom wall
 
 % V
-u(:,end,3) = 0;           % No flow through walls
+u(end,:,3) = 0;         % No flow through bottom wall
 
 end
 %************************************************************************
@@ -867,14 +868,14 @@ dt = zeros(imax - 2);
 nu = rmu./rho;
 for xcoord = 2:imax-1
     for ycoord = 2:jmax-1
-        beta(xcoord, ycoord) = max(u(xcoord, ycoord, 2), rkappa .* vel2ref);
-        beta2(xcoord, ycoord) = beta(xcoord, ycoord).^2;
-        lambda_x(xcoord, ycoord) = 0.5 .* (abs(u(xcoord, ycoord, 2)) + sqrt(u(xcoord, ycoord, 2) + 4.*beta.^2));
-        lambda_y(xcoord, ycoord) = 0.5 .* (abs(u(xcoord, ycoord, 3)) + sqrt(u(xcoord, ycoord, 3) + 4.*beta.^2));
-        lambda_max(xcoord, ycoord) = max(lambda_x(xcoord, ycoord), lambda_y(xcoord, ycoord));
+        beta(ycoord, xcoord) = max(u(ycoord, xcoord, 2), rkappa .* vel2ref);
+        beta2(ycoord, xcoord) = beta(ycoord, xcoord).^2;
+        lambda_x(ycoord, xcoord) = 0.5 .* (abs(u(ycoord, xcoord, 2)) + sqrt(u(ycoord, xcoord, 2) + 4.*beta.^2));
+        lambda_y(ycoord, xcoord) = 0.5 .* (abs(u(ycoord, xcoord, 3)) + sqrt(u(ycoord, xcoord, 3) + 4.*beta.^2));
+        lambda_max(ycoord, xcoord) = max(lambda_x(ycoord, xcoord), lambda_y(ycoord, xcoord));
         deltatc = min(dx, dy) ./ abs(lambda_max);
         deltatd = (dx.*dy)./(4.*nu);
-        dt(xcoord, ycoord) = cfl * min(deltatc, deltatd);
+        dt(ycoord, xcoord) = cfl * min(deltatc, deltatd);
     end
 end
 
@@ -915,13 +916,14 @@ global lambda_x lambda_y lambda_max beta2
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-S = zeros(length(lambda_x));
+
 for xcoord = 2:imax-1
     for ycoord = 2:jmax-1
-        S(xcoord, ycoord) = (((-abs(lambda_x(xcoord, ycoord))*Cx)/ ...
-            (beta2)).*xderiv4p) - (((abs(lambda_y(xcoord,ycoord)).*Cx) ...
-            ./(beta2)).*yderiv4p);
-            % BORKED
+        deriv4p(xcoord, ycoord) = (u(ycoord,xcoord+2,3)-4.*u(ycoord, xcoord+1,3) + ...
+            6.*u(ycoord, xcoord,3) - 4.*u(xcoord-1, ycoord,3) + ...
+            u(ycoord, xcoord-2,3))./(dx.^4);
+        artviscx(ycoord, xcoord) = (((-abs(lambda_x(xcoord, ycoord))*Cx)/(beta2)).*deriv4p) 
+        artviscy(ycoord, xcoord) = - (((abs(lambda_y(xcoord,ycoord)).*Cx)./(beta2)).*deriv4p);
     end
 end
 %************************************************************************
