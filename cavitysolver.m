@@ -27,8 +27,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 33;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
+imax = 65;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -63,11 +63,11 @@ irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 fo
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.5;      % CFL number used to determine time step
+cfl  = 0.9;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-5; 	% Tolerance for iterative residual convergence
-rkappa = 0.1;   	% Time derivative preconditioning constant
+rkappa = 0.01;   	% Time derivative preconditioning constant
 Re = 100.0;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
 uinf = 1.0;      % Lid velocity (m/s)
@@ -498,13 +498,16 @@ global u
 % u(:,:,3) = v
 
 % U
-u(1,:,2) = uinf;        % Flow
-u(:,end,2) = 0;         % No flow through right wall
-u(:,1,2) = 0;           % No flow through left wall
-u(end,:,2) = 0;         % No flow through bottom wall
+u(:,jmax,2) = uinf;
+u(imax,:,2) = 0;
+u(1,:,2) = 0;
+u(:,1,2) = 0;
 
 % V
-u(end,:,3) = 0;         % No flow through bottom wall
+u(:,jmax,3) = 0;
+u(imax,:,3) = 0;
+u(1,:,3) = 0;
+u(:,1,3) = 0;
 
 end
 %************************************************************************
@@ -859,24 +862,23 @@ global u dt
 % !************************************************************** */
 % Local time step
 
-global lambda_x lambda_y lambda_max beta beta2
+global lambda_x lambda_y lambda_max beta2 two
 lambda_x = zeros(imax - 1);
 lambda_y = lambda_x;
 lambda_max = lambda_x;
 dt = zeros(imax - 2);
 
 nu = rmu./rho;
-for xcoord = 2:imax-1
-    for ycoord = 2:jmax-1
-        beta(ycoord, xcoord) = max(u(ycoord, xcoord, 2), rkappa .* vel2ref);
-        beta2(ycoord, xcoord) = beta(ycoord, xcoord).^2;
-        lambda_x(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 2)) + sqrt(u(ycoord, xcoord, 2) + four.*beta2(ycoord,xcoord)));
-        lambda_y(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 3)) + sqrt(u(ycoord, xcoord, 3) + four.*beta2(ycoord,xcoord)));
-        lambda_max(ycoord, xcoord) = max(lambda_x(ycoord, xcoord), lambda_y(ycoord, xcoord));
-        deltatc = min(dx, dy) ./ abs(lambda_max);
+for ycoord = 2:imax-1
+    for xcoord = 2:jmax-1
+        beta2(xcoord, ycoord) = max(u(xcoord, ycoord, 2)^two+u(xcoord,ycoord,3)^two, rkappa .* vel2ref);
+        lambda_x(xcoord, ycoord) = half .* (abs(u(xcoord, ycoord, 2)) + sqrt(u(xcoord, ycoord, 2)^2 + four.*beta2(xcoord,ycoord)));
+        lambda_y(xcoord, ycoord) = half .* (abs(u(xcoord, ycoord, 3)) + sqrt(u(xcoord, ycoord, 3)^2 + four.*beta2(xcoord,ycoord)));
+        lambda_max(xcoord, ycoord) = max(lambda_x(xcoord, ycoord), lambda_y(xcoord, ycoord));
+        deltatc(xcoord,ycoord) = min(dx, dy) ./ lambda_max(xcoord,ycoord);
         deltatd = (dx.*dy)./(4*nu);
-        dt(ycoord, xcoord) = cfl * min(min(min(deltatc, deltatd)));
-        dtmin(ycoord,xcoord) = dt(ycoord,xcoord);
+        dt(xcoord, ycoord) = cfl * min(deltatc(xcoord,ycoord), deltatd);
+        dtmin(xcoord,ycoord) = dt(xcoord,ycoord);
     end
 end
 
@@ -918,31 +920,31 @@ global lambda_x lambda_y lambda_max beta2
 % !************************************************************** */
 
 
-for ycoord = 3:jmax-2
-    for xcoord = 3:imax-2
-        d4pdx4(ycoord, xcoord) = (u(ycoord,xcoord+2,3)-four.*u(ycoord, xcoord+1,3) + ...
-            six.*u(ycoord, xcoord,3) - four.*u(ycoord, xcoord-1,3) + ...
-            u(ycoord, xcoord-2,3))./(dx.^four);
-        d4pdy4(ycoord, xcoord) = (u(ycoord+2,xcoord,3)-four.*u(ycoord+1, xcoord,3) + ...
-            six.*u(ycoord, xcoord,3) - four.*u(ycoord-1, xcoord,3) + ...
-            u(ycoord-2, xcoord,3))./(dy.^four);
-        artviscx(ycoord, xcoord) = -lambda_x(ycoord, xcoord).*Cx.*dx^3./beta2(ycoord,xcoord).*d4pdx4(ycoord,xcoord); 
-        artviscy(ycoord, xcoord) = -lambda_y(ycoord, xcoord).*Cy.*dy.^3./beta2(ycoord,xcoord).*d4pdy4(ycoord,xcoord);
+for xcoord = 3:jmax-2
+    for ycoord = 3:imax-2
+        d4pdx4(xcoord, ycoord) = (u(xcoord,ycoord+2,3)-four.*u(xcoord, ycoord+1,3) + ...
+            six.*u(xcoord, ycoord,3) - four.*u(xcoord, ycoord-1,3) + ...
+            u(xcoord, ycoord-2,3))./(dx.^four);
+        d4pdy4(xcoord, ycoord) = (u(xcoord+2,ycoord,3)-four.*u(xcoord+1, ycoord,3) + ...
+            six.*u(xcoord, ycoord,3) - four.*u(xcoord-1, ycoord,3) + ...
+            u(xcoord-2, ycoord,3))./(dy.^four);
+        artviscx(xcoord, ycoord) = -lambda_x(xcoord, ycoord).*Cx.*dx^3./beta2(xcoord,ycoord).*d4pdx4(xcoord,ycoord); 
+        artviscy(xcoord, ycoord) = -lambda_y(xcoord, ycoord).*Cy.*dy.^3./beta2(xcoord,ycoord).*d4pdy4(xcoord,ycoord);
     end
 end
 
 % Boundary conditions
-d4pdx4(:,2) = 2*d4pdx4(:,3) - d4pdx4(:,4);
-d4pdy4(:,2) = 2*d4pdy4(:,3) - d4pdy4(:,4);
-
-d4pdx4(:,imax-1) = 2*d4pdx4(:, imax-2) - d4pdx4(:, imax-3);
-d4pdy4(:,imax-1) = 2*d4pdy4(:, imax-2) - d4pdy4(:, imax-3);
-
 d4pdx4(2,:) = 2*d4pdx4(3,:) - d4pdx4(4,:);
 d4pdy4(2,:) = 2*d4pdy4(3,:) - d4pdy4(4,:);
 
-d4pdx4(jmax-1,:) = 2*d4pdx4(imax-2,:) - d4pdx4(imax-3,:);
-d4pdy4(jmax-1,:) = 2*d4pdy4(imax-2,:) - d4pdy4(imax-3,:);
+d4pdx4(imax-1,:) = 2*d4pdx4(jmax-2,:) - d4pdx4(jmax-3,:);
+d4pdy4(imax-1,:) = 2*d4pdy4(jmax-2,:) - d4pdy4(jmax-3,:);
+
+d4pdx4(:,2) = 2*d4pdx4(:,3) - d4pdx4(:,4);
+d4pdy4(:,2) = 2*d4pdy4(:,3) - d4pdy4(:,4);
+
+d4pdx4(:,imax-1) = 2*d4pdx4(:,jmax-2) - d4pdx4(:,jmax-3);
+d4pdy4(:,imax-1) = 2*d4pdy4(:,jmax-2) - d4pdy4(:,jmax-3);
 
 %************************************************************************
 %function SGS_forward_sweep(~)
@@ -1059,37 +1061,37 @@ global u uold artviscx artviscy dt s
 % !************************************************************** */
 ui=zeros(imax);
 
-for ycoord = 2:jmax-1
-    for xcoord = 2:imax-1
+for xcoord = 2:jmax-1
+    for ycoord = 2:imax-1
         % Pressure
-        ui(ycoord, xcoord, 1) = u(ycoord, xcoord, 1) - beta2(ycoord, xcoord)*...
-        dt(ycoord,xcoord).*((rho * (u(ycoord, xcoord+1,2)-u(ycoord,xcoord-1,2)))/(two*dx) + ...
-        (rho*(u(ycoord+1, xcoord, 3)-u(ycoord-1,xcoord,3)))/(two*dy) - ...
-        (artviscx(ycoord,xcoord) + artviscy(ycoord,xcoord)) - s(ycoord, xcoord,1));
+        ui(xcoord, ycoord, 1) = u(xcoord, ycoord, 1) - beta2(xcoord, ycoord)*...
+        dt(xcoord,ycoord).*((rho * (u(xcoord+1, ycoord,2)-u(xcoord-1,ycoord,2)))/(two*dx) + ...
+        (rho*(u(xcoord, ycoord+1, 3)-u(xcoord,ycoord-1,3)))/(two*dy) - ...
+        (artviscx(xcoord,ycoord) + artviscy(xcoord,ycoord)) - s(xcoord, ycoord,1));
         
         % X-velocity
-        ui(ycoord,xcoord,2) = u(ycoord,xcoord,2) - ((dt(ycoord,xcoord))/(rho))*...
-        ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,2)-u(ycoord,xcoord-1,2))/(two*dx)+ ...
-        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,2)-u(ycoord-1,xcoord,2))/(two*dy)+ ...
-        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(two*dx)-(rmu)*(u(ycoord,xcoord+1,2)- ...
-        two*u(ycoord,xcoord,2)+u(ycoord,xcoord-1,2))/(dx^two)-(-rmu)*(u(ycoord+1,xcoord,2)- ...
-        two*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^two)-(artviscx(ycoord,xcoord)+artviscy(ycoord,xcoord)) - umms(ycoord,xcoord,2));
+        ui(xcoord,ycoord,2) = u(xcoord,ycoord,2) - ((dt(xcoord,ycoord))/(rho))*...
+        ((rho*u(xcoord,ycoord,2))*(u(xcoord+1,ycoord,2)-u(xcoord-1,ycoord,2))/(two*dx)+ ...
+        (rho*u(xcoord,ycoord,3))*(u(xcoord,ycoord+1,2)-u(xcoord,ycoord-1,2))/(two*dy)+ ...
+        (u(xcoord+1,ycoord,1)-u(xcoord-1,ycoord,1))/(two*dx)-(rmu)*(u(xcoord+1,ycoord,2)- ...
+        two*u(xcoord,ycoord,2)+u(xcoord-1,ycoord,2))/(dx^two)-(-rmu)*(u(xcoord,ycoord+1,2)- ...
+        two*u(xcoord,ycoord,2)+u(xcoord,ycoord-1,2))/(dy^two)-(artviscx(xcoord,ycoord)+artviscy(xcoord,ycoord)) - umms(xcoord,ycoord,2));
         
         % Y-velocity
-        ui(ycoord,xcoord,3) = u(ycoord,xcoord,3) - ((dt(ycoord,xcoord))/(rho))*...
-        ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,3)-u(ycoord,xcoord-1,3))/(two*dx)+ ...
-        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,3)-u(ycoord-1,xcoord,3))/(two*dy)+ ...
-        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(two*dx)-(rmu)*(u(ycoord,xcoord+1,3)- ...
-        two*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^two)-(-rmu)*(u(ycoord+1,xcoord,3)- ...
-        two*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^two)-(artviscx(ycoord,xcoord)+artviscy(ycoord,xcoord)) - umms(ycoord, xcoord, 3));
+        ui(xcoord,ycoord,3) = u(xcoord,ycoord,3) - ((dt(xcoord,ycoord))/(rho))*...
+        ((rho*u(xcoord,ycoord,2))*(u(xcoord+1,ycoord,3)-u(xcoord-1,ycoord,3))/(two*dx)+ ...
+        (rho*u(xcoord,ycoord,3))*(u(xcoord,ycoord+1,3)-u(xcoord,ycoord-1,3))/(two*dy)+ ...
+        (u(xcoord+1,ycoord,1)-u(xcoord-1,ycoord,1))/(two*dx)-(rmu)*(u(xcoord+1,ycoord,3)- ...
+        two*u(xcoord,ycoord,3)+u(xcoord-1,ycoord,3))/(dx^two)-(-rmu)*(u(xcoord,ycoord+1,3)- ...
+        two*u(xcoord,ycoord,3)+u(xcoord,ycoord-1,3))/(dy^two)-(artviscx(xcoord,ycoord)+artviscy(xcoord,ycoord)) - umms(xcoord, ycoord, 3));
     end
 end
 
 % Boundary conditions
-ui(1,:,1) = two.*u(2,:,1) - u(3,:,1);
-ui(jmax,:,1) = two.*u(jmax-1,:,1) - u(jmax-2,:,1);
-ui(:,1,1) = two.*u(:,2,1)-u(:,3,1);
-ui(:,imax,1) = two.*u(:,imax-1,1) - u(:,imax-2,1);
+ui(:,1,1) = two.*u(:,2,1) - u(:,3,1);
+ui(:,jmax,1) = two.*u(:,jmax-1,1) - u(:,jmax-2,1);
+ui(1,:,1) = two.*u(2,:,1)-u(3,:,1);
+ui(imax,:,1) = two.*u(imax-1,:,1) - u(imax-2,:,1);
 
 u = ui;
 
@@ -1156,33 +1158,34 @@ res_p = zeros(imax - 2);
 res_x = res_p; res_y = res_p;
 
 
-for xcoord = 2:imax - 1
-    for ycoord = 2:jmax - 1
+for ycoord = 2:imax - 1
+    for xcoord = 2:jmax - 1
         
         % Pressure
-        res_p(ycoord,xcoord) = (u(ycoord,xcoord,1)-uold(ycoord,xcoord,1))./(dt(ycoord,xcoord).*beta2(ycoord,xcoord));
+        res_p(xcoord,ycoord) = (u(xcoord,ycoord,1)-uold(xcoord,ycoord,1))./(dt(xcoord,ycoord).*beta2(xcoord,ycoord));
         
         % X-velocity
-        res_x(ycoord,xcoord) = -rho.*(u(ycoord,xcoord,2)-uold(ycoord,xcoord,2))./(dt(ycoord,xcoord));
+        res_x(xcoord,ycoord) = -rho.*(u(xcoord,ycoord,2)-uold(xcoord,ycoord,2))./(dt(xcoord,ycoord));
         
         % Y-velocity
-        res_y(ycoord,xcoord) = -rho.*(u(ycoord,xcoord,3)-uold(ycoord,xcoord,3))./(dt(ycoord,xcoord));
+        res_y(xcoord,ycoord) = -rho.*(u(xcoord,ycoord,3)-uold(xcoord,ycoord,3))./(dt(xcoord,ycoord));
     end
 end
 resl = res_p(:,:);
 resl(:,:,2) = res_x(:,:);
 resl(:,:,3) = res_y(:,:);
 
-L2p = sqrt((sum(sum(res_p)))./(numel(res_p)));
-L2x = sqrt((sum(sum(res_x)))./(numel(res_x)));
-L2y = sqrt((sum(sum(res_y)))./(numel(res_y)));
+L2p = sqrt((sum(sum(abs(res_p))))./(numel(res_p)));
+L2x = sqrt((sum(sum(abs(res_x))))./(numel(res_x)));
+L2y = sqrt((sum(sum(abs(res_y))))./(numel(res_y)));
 res = [L2p, L2x, L2y];
 if n == 1
     resinit = res;
+    L2init = sqrt((sum(sum(abs(resinit))))./(numel(resinit)));
 end
-conp = abs(res(1) ./ abs(resinit));
-conx = abs(res(2) ./ abs(resinit));
-cony = abs(res(3) ./ abs(resinit));
+conp = abs(L2p ./ abs(resinit));
+conx = abs(L2x ./ abs(resinit));
+cony = abs(L2y ./ abs(resinit));
 conv = min([conp, conx, cony]);
 
 
@@ -1228,9 +1231,9 @@ if imms==1
 % !************************************************************** */
 
 for mode = 1:3
-    for ycoord = 1:jmax
-        for xcoord = 1:imax
-            de(ycoord, xcoord, mode) = u(ycoord,xcoord,mode) - umms(ycoord,xcoord,mode);
+    for xcoord = 1:jmax
+        for ycoord = 1:imax
+            de(xcoord, ycoord, mode) = u(xcoord,ycoord,mode) - umms(xcoord,ycoord,mode);
         end
     end
 end
