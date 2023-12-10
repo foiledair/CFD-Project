@@ -232,7 +232,7 @@ for n = ninit:nmax
         Compute_Artificial_Viscosity();
         
         % Symmetric Gauss-Siedel: Forward Sweep
-        SGS_forward_sweep();
+        %SGS_forward_sweep();
         
         % Set Boundary Conditions for u
         set_boundary_conditions();
@@ -241,7 +241,7 @@ for n = ninit:nmax
         Compute_Artificial_Viscosity();
         
         % Symmetric Gauss-Siedel: Backward Sweep
-        SGS_backward_sweep();
+        %SGS_backward_sweep();
         
         % Set Boundary Conditions for u
         set_boundary_conditions();
@@ -869,13 +869,13 @@ nu = rmu./rho;
 for xcoord = 2:imax-1
     for ycoord = 2:jmax-1
         beta(ycoord, xcoord) = max(u(ycoord, xcoord, 2), rkappa .* vel2ref);
-        beta2(ycoord, xcoord) = beta(ycoord, xcoord).^two;
-        lambda_x(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 2)) + sqrt(u(ycoord, xcoord, 2) + four.*beta2));
-        lambda_y(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 3)) + sqrt(u(ycoord, xcoord, 3) + four.*beta2));
+        beta2(ycoord, xcoord) = beta(ycoord, xcoord).^2;
+        lambda_x(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 2)) + sqrt(u(ycoord, xcoord, 2) + four.*beta2(ycoord,xcoord)));
+        lambda_y(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 3)) + sqrt(u(ycoord, xcoord, 3) + four.*beta2(ycoord,xcoord)));
         lambda_max(ycoord, xcoord) = max(lambda_x(ycoord, xcoord), lambda_y(ycoord, xcoord));
         deltatc = min(dx, dy) ./ abs(lambda_max);
-        deltatd = (dx.*dy)./(f.*nu);
-        dt(ycoord, xcoord) = cfl * min(deltatc, deltatd);
+        deltatd = (dx.*dy)./(umms(ycoord,xcoord,1).*nu);
+        dt(ycoord, xcoord) = cfl * min(min(min(deltatc, deltatd)));
     end
 end
 
@@ -920,13 +920,13 @@ global lambda_x lambda_y lambda_max beta2
 for ycoord = 3:jmax-2
     for xcoord = 3:imax-2
         d4pdx4(ycoord, xcoord) = (u(ycoord,xcoord+2,3)-four.*u(ycoord, xcoord+1,3) + ...
-            six.*u(ycoord, xcoord,3) - four.*u(xcoord-1, ycoord,3) + ...
+            six.*u(ycoord, xcoord,3) - four.*u(ycoord, xcoord-1,3) + ...
             u(ycoord, xcoord-2,3))./(dx.^four);
         d4pdy4(ycoord, xcoord) = (u(ycoord+2,xcoord,3)-four.*u(ycoord+1, xcoord,3) + ...
             six.*u(ycoord, xcoord,3) - four.*u(ycoord-1, xcoord,3) + ...
-            u(ycoord-2, xcoord,3))./(dy.^4.0);
-        artviscx(ycoord, xcoord) = -lambda_x(ycoord, xcoord).*Cx*dx^3/beta2.*d4pdx4(ycoord,xcoord); 
-        artviscy(ycoord, xcoord) = -lambda_y(ycoord, xcoord).*Cy*dy^3/beta2.*d4pdy4(ycoord,xcoord);
+            u(ycoord-2, xcoord,3))./(dy.^four);
+        artviscx(ycoord, xcoord) = -lambda_x(ycoord, xcoord).*Cx.*dx^3./beta2(ycoord,xcoord).*d4pdx4(ycoord,xcoord); 
+        artviscy(ycoord, xcoord) = -lambda_y(ycoord, xcoord).*Cy.*dy.^3./beta2(ycoord,xcoord).*d4pdy4(ycoord,xcoord);
     end
 end
 
@@ -944,7 +944,7 @@ d4pdx4(jmax-1,:) = 2*d4pdx4(imax-2,:) - d4pdx4(imax-3,:);
 d4pdy4(jmax-1,:) = 2*d4pdy4(imax-2,:) - d4pdy4(imax-3,:);
 
 %************************************************************************
-function SGS_forward_sweep(~)
+%function SGS_forward_sweep(~)
 %
 %Uses global variable(s): two, three, six, half
 %Uses global variable(s): imax, imax, jmax, ipgorder, rho, rhoinv, dx, dy, rkappa, ...
@@ -968,9 +968,9 @@ function SGS_forward_sweep(~)
 % beta2        % Beta squared parameter for time derivative preconditioning
 % uvel2        % Velocity squared
 
-global two half
-global imax jmax rho rhoinv dx dy rkappa rmu vel2ref
-global artviscx artviscy dt s u
+%global two half
+%global imax jmax rho rhoinv dx dy rkappa rmu vel2ref
+%global artviscx artviscy dt s u
 
 % Symmetric Gauss-Siedel: Forward Sweep
 
@@ -1061,33 +1061,33 @@ for ycoord = 2:jmax-1
     for xcoord = 2:imax-1
         % Pressure
         ui(ycoord, xcoord, 1) = u(ycoord, xcoord, 1) - beta2(ycoord, xcoord)*...
-        dt((rho * (u(ycoord, xcoord+1,2)-u(ycoord,xcoord-1,2)))/(2*dx) + ...
-        (rho*(u(ycoord+1, xcoord, 3)-u(ycoord-1,xcoord,3)))/(2*dy) - ...
-        (artviscx + artviscy) - S(ycoord, xcoord,1));
+        dt((rho * (u(ycoord, xcoord+1,2)-u(ycoord,xcoord-1,2)))/(two*dx) + ...
+        (rho*(u(ycoord+1, xcoord, 3)-u(ycoord-1,xcoord,3)))/(two*dy) - ...
+        (artviscx(ycoord,xcoord) + artviscy(ycoord,xcoord)) - s(ycoord, xcoord,1));
         
         % X-velocity
         ui(ycoord,xcoord,2) = u(ycoord,xcoord,2) - ((deltat(ycoord,xcoord))/(rho))*...
-        ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,2)-u(ycoord,xcoord-1,2))/(2*dx)+ ...
-        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,2)-u(ycoord-1,xcoord,2))/(2*dy)+ ...
-        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,2)- ...
-        2*u(ycoord,xcoord,2)+u(ycoord,xcoord-1,2))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,2)- ...
-        2*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^2)-(artviscx+artviscy) - S(ycoord,xcoord,2));;
+        ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,2)-u(ycoord,xcoord-1,2))/(two*dx)+ ...
+        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,2)-u(ycoord-1,xcoord,2))/(two*dy)+ ...
+        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(two*dx)-(mu)*(u(ycoord,xcoord+1,2)- ...
+        two*u(ycoord,xcoord,2)+u(ycoord,xcoord-1,2))/(dx^two)-(-mu)*(u(ycoord+1,xcoord,2)- ...
+        two*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^two)-(artviscx(ycoord,xcoord)+artviscy(ycoord,xcoord)) - s(ycoord,xcoord,2));
         
         % Y-velocity
         ui(ycoord,xcoord,3) = u(ycoord,xcoord,3) - ((deltat(ycoord,xcoord))/(rho))*...
-        ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,3)-u(ycoord,xcoord-1,3))/(2*dx)+ ...
-        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,3)-u(ycoord-1,xcoord,3))/(2*dy)+ ...
-        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,3)- ...
-        2*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,3)- ...
-        2*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^2)-(artviscx+artviscy) - S(ycoord, xcoord, 3));
+        ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,3)-u(ycoord,xcoord-1,3))/(two*dx)+ ...
+        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,3)-u(ycoord-1,xcoord,3))/(two*dy)+ ...
+        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(two*dx)-(mu)*(u(ycoord,xcoord+1,3)- ...
+        two*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^two)-(-mu)*(u(ycoord+1,xcoord,3)- ...
+        two*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^two)-(artviscx(ycoord,xcoord)+artviscy(ycoord,xcoord)) - s(ycoord, xcoord, 3));
     end
 end
 
 % Boundary conditions
-ui(1,:,1) = 2.*u(2,:,1) - u(3,:,1);
-ui(jmax,:,1) = 2.*u(jmax-1,:,1) - u(jmax-2,:,1);
-ui(:,1,1) = 2.*u(:,2,1)-u(:,3,1);
-ui(:,imax,1) = 2.*(:,imax-1,1) - u(:,imax-2,1);
+ui(1,:,1) = two.*u(2,:,1) - u(3,:,1);
+ui(jmax,:,1) = two.*u(jmax-1,:,1) - u(jmax-2,:,1);
+ui(:,1,1) = two.*u(:,2,1)-u(:,3,1);
+ui(:,imax,1) = two.*u(:,imax-1,1) - u(:,imax-2,1);
 
 u = ui;
 
@@ -1140,8 +1140,8 @@ function [res, resinit, conv] = check_iterative_convergence...
 % j                        % j index (y direction)
 % k                        % k index (# of equations)
 
-global zero
-global imax jmax neq fsmall
+global zero beta2
+global imax jmax neq fsmall rho
 global u uold dt fp1
 
 % Compute iterative residuals to monitor iterative convergence
@@ -1150,28 +1150,21 @@ global u uold dt fp1
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
+res_p = zeros(imax - 2);
+res_x = res_p; res_y = res_p;
+
+
 for xcoord = 2:imax - 1
     for ycoord = 2:jmax - 1
         
         % Pressure
-        res_p(ycoord,xcoord) = (rho * (u(ycoord, xcoord+1,2)-u(ycoord,xcoord-1,2)))/(2*dx) + ...
-        (rho*(u(ycoord+1, xcoord, 3)-u(ycoord-1,xcoord,3)))/(2*dy) - ...
-        S(ycoord, xcoord) - fmanu(ycoord, xcoord);
+        res_p(ycoord,xcoord) = (u(ycoord,xcoord,1)-uold(ycoord,xcoord,1))./(dt(ycoord,xcoord).*beta2(ycoord,xcoord));
         
         % X-velocity
-        res_x(ycoord,xcoord) = (rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,2)-u(ycoord,xcoord-1,2))/(2*dx)+ ...
-        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,2)-u(ycoord-1,xcoord,2))/(2*dy)+ ...
-        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,2)- ...
-        2*u(ycoord,xcoord,2)+u(ycoord,xcoord-1,2))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,2)- ...
-        2*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^2)-fmanu(ycoord,xcoord);
+        res_x(ycoord,xcoord) = -rho.*(u(ycoord,xcoord,2)-uold(ycoord,xcoord,2))./(dt(ycoord,xcoord));
         
         % Y-velocity
-        res_y(ycoord,xcoord) = (rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,3)-u(ycoord,xcoord-1,3))/(2*dx)+ ...
-        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,3)-u(ycoord-1,xcoord,3))/(2*dy)+ ...
-        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,3)- ...
-        2*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,3)- ...
-        2*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^2)-fmanu(ycoord,xcoord);
-
+        res_y(ycoord,xcoord) = -rho.*(u(ycoord,xcoord,3)-uold(ycoord,xcoord,3))./(dt(ycoord,xcoord));
     end
 end
 res = [res_p, res_x, res_y];
