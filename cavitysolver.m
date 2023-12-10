@@ -27,8 +27,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 65;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
+imax = 33;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -55,10 +55,10 @@ six    = 6.0;
 
 %--------- User sets inputs here  --------
 
-nmax = 500000;        % Maximum number of iterations
+nmax = 500;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
 imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
-isgs = 1;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
+isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
 irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 for initial run
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
@@ -66,7 +66,7 @@ lim = 1;              % variable to be used as the limiter sensor (= 1 for press
 cfl  = 0.5;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
-toler = 1.e-10; 	% Tolerance for iterative residual convergence
+toler = 1.e-5; 	% Tolerance for iterative residual convergence
 rkappa = 0.1;   	% Time derivative preconditioning constant
 Re = 100.0;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
@@ -852,7 +852,7 @@ global four half fourth
 global vel2ref rmu rho dx dy cfl rkappa imax jmax
 global u dt
 
-global dt dtmin
+% global dt dtmin
 
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
@@ -874,8 +874,9 @@ for xcoord = 2:imax-1
         lambda_y(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 3)) + sqrt(u(ycoord, xcoord, 3) + four.*beta2(ycoord,xcoord)));
         lambda_max(ycoord, xcoord) = max(lambda_x(ycoord, xcoord), lambda_y(ycoord, xcoord));
         deltatc = min(dx, dy) ./ abs(lambda_max);
-        deltatd = (dx.*dy)./(umms(ycoord,xcoord,1).*nu);
+        deltatd = (dx.*dy)./(4*nu);
         dt(ycoord, xcoord) = cfl * min(min(min(deltatc, deltatd)));
+        dtmin(ycoord,xcoord) = dt(ycoord,xcoord);
     end
 end
 
@@ -1047,7 +1048,7 @@ function point_Jacobi(~)
 % d2vdy2       % Second derivative of y velocity w.r.t. y
 % beta2        % Beta squared parameter for time derivative preconditioning
 % uvel2        % Velocity squared
-global two half
+global two half beta2 mu
 global imax jmax rho rhoinv dx dy rkappa rmu vel2ref
 global u uold artviscx artviscy dt s
 
@@ -1056,30 +1057,31 @@ global u uold artviscx artviscy dt s
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
+ui=zeros(imax);
 
 for ycoord = 2:jmax-1
     for xcoord = 2:imax-1
         % Pressure
         ui(ycoord, xcoord, 1) = u(ycoord, xcoord, 1) - beta2(ycoord, xcoord)*...
-        dt((rho * (u(ycoord, xcoord+1,2)-u(ycoord,xcoord-1,2)))/(two*dx) + ...
+        dt(ycoord,xcoord).*((rho * (u(ycoord, xcoord+1,2)-u(ycoord,xcoord-1,2)))/(two*dx) + ...
         (rho*(u(ycoord+1, xcoord, 3)-u(ycoord-1,xcoord,3)))/(two*dy) - ...
         (artviscx(ycoord,xcoord) + artviscy(ycoord,xcoord)) - s(ycoord, xcoord,1));
         
         % X-velocity
-        ui(ycoord,xcoord,2) = u(ycoord,xcoord,2) - ((deltat(ycoord,xcoord))/(rho))*...
+        ui(ycoord,xcoord,2) = u(ycoord,xcoord,2) - ((dt(ycoord,xcoord))/(rho))*...
         ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,2)-u(ycoord,xcoord-1,2))/(two*dx)+ ...
         (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,2)-u(ycoord-1,xcoord,2))/(two*dy)+ ...
-        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(two*dx)-(mu)*(u(ycoord,xcoord+1,2)- ...
-        two*u(ycoord,xcoord,2)+u(ycoord,xcoord-1,2))/(dx^two)-(-mu)*(u(ycoord+1,xcoord,2)- ...
-        two*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^two)-(artviscx(ycoord,xcoord)+artviscy(ycoord,xcoord)) - s(ycoord,xcoord,2));
+        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(two*dx)-(rmu)*(u(ycoord,xcoord+1,2)- ...
+        two*u(ycoord,xcoord,2)+u(ycoord,xcoord-1,2))/(dx^two)-(-rmu)*(u(ycoord+1,xcoord,2)- ...
+        two*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^two)-(artviscx(ycoord,xcoord)+artviscy(ycoord,xcoord)) - umms(ycoord,xcoord,2));
         
         % Y-velocity
-        ui(ycoord,xcoord,3) = u(ycoord,xcoord,3) - ((deltat(ycoord,xcoord))/(rho))*...
+        ui(ycoord,xcoord,3) = u(ycoord,xcoord,3) - ((dt(ycoord,xcoord))/(rho))*...
         ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,3)-u(ycoord,xcoord-1,3))/(two*dx)+ ...
         (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,3)-u(ycoord-1,xcoord,3))/(two*dy)+ ...
-        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(two*dx)-(mu)*(u(ycoord,xcoord+1,3)- ...
-        two*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^two)-(-mu)*(u(ycoord+1,xcoord,3)- ...
-        two*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^two)-(artviscx(ycoord,xcoord)+artviscy(ycoord,xcoord)) - s(ycoord, xcoord, 3));
+        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(two*dx)-(rmu)*(u(ycoord,xcoord+1,3)- ...
+        two*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^two)-(-rmu)*(u(ycoord+1,xcoord,3)- ...
+        two*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^two)-(artviscx(ycoord,xcoord)+artviscy(ycoord,xcoord)) - umms(ycoord, xcoord, 3));
     end
 end
 
@@ -1167,16 +1169,22 @@ for xcoord = 2:imax - 1
         res_y(ycoord,xcoord) = -rho.*(u(ycoord,xcoord,3)-uold(ycoord,xcoord,3))./(dt(ycoord,xcoord));
     end
 end
-res = [res_p, res_x, res_y];
-for counter = 1:3
-    L1(counter) = sum(abs(res(n)))/numel(res(n));
-    L2(counter) = sqrt((sum(abs(res(n))).^2)/numel(res(n)));
-    L3(counter) = max(res(n));
-end
+resl = res_p(:,:);
+resl(:,:,2) = res_x(:,:);
+resl(:,:,3) = res_y(:,:);
+
+L2p = sqrt((sum(sum(res_p)))./(numel(res_p)));
+L2x = sqrt((sum(sum(res_x)))./(numel(res_x)));
+L2y = sqrt((sum(sum(res_y)))./(numel(res_y)));
+res = [L2p, L2x, L2y];
 if n == 1
-    resinit(n) = res(n);
+    resinit = res;
 end
-conv(n) = abs(res(n))./abs(resinit(n));
+conp = abs(res(1) ./ abs(resinit));
+conx = abs(res(2) ./ abs(resinit));
+cony = abs(res(3) ./ abs(resinit));
+conv = min([conp, conx, cony]);
+
 
 
 
