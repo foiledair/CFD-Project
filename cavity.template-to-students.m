@@ -917,8 +917,8 @@ global lambda_x lambda_y lambda_max beta2
 % !************************************************************** */
 
 
-for ycoord = 2:jmax-1
-    for xcoord = 2:imax-1
+for ycoord = 3:jmax-2
+    for xcoord = 3:imax-2
         d4pdx4(ycoord, xcoord) = (u(ycoord,xcoord+2,3)-four.*u(ycoord, xcoord+1,3) + ...
             six.*u(ycoord, xcoord,3) - four.*u(xcoord-1, ycoord,3) + ...
             u(ycoord, xcoord-2,3))./(dx.^four);
@@ -929,6 +929,20 @@ for ycoord = 2:jmax-1
         artviscy(ycoord, xcoord) = -lambda_y(ycoord, xcoord).*Cy*dy^3/beta2.*d4pdy4(ycoord,xcoord);
     end
 end
+
+% Boundary conditions
+d4pdx4(:,2) = 2*d4pdx4(:,3) - d4pdx4(:,4);
+d4pdy4(:,2) = 2*d4pdy4(:,3) - d4pdy4(:,4);
+
+d4pdx4(:,imax-1) = 2*d4pdx4(:, imax-2) - d4pdx4(:, imax-3);
+d4pdy4(:,imax-1) = 2*d4pdy4(:, imax-2) - d4pdy4(:, imax-3);
+
+d4pdx4(2,:) = 2*d4pdx4(3,:) - d4pdx4(4,:);
+d4pdy4(2,:) = 2*d4pdy4(3,:) - d4pdy4(4,:);
+
+d4pdx4(jmax-1,:) = 2*d4pdx4(imax-2,:) - d4pdx4(imax-3,:);
+d4pdy4(jmax-1,:) = 2*d4pdy4(imax-2,:) - d4pdy4(imax-3,:);
+
 %************************************************************************
 function SGS_forward_sweep(~)
 %
@@ -1043,13 +1057,13 @@ global u uold artviscx artviscy dt s
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-for ycoord = 2:jmax
-    for xcoord = 2:imax
+for ycoord = 2:jmax-1
+    for xcoord = 2:imax-1
         % Pressure
         ui(ycoord, xcoord, 1) = u(ycoord, xcoord, 1) - beta2(ycoord, xcoord)*...
         dt((rho * (u(ycoord, xcoord+1,2)-u(ycoord,xcoord-1,2)))/(2*dx) + ...
         (rho*(u(ycoord+1, xcoord, 3)-u(ycoord-1,xcoord,3)))/(2*dy) - ...
-        S(ycoord, xcoord) - fmanu(ycoord, xcoord));
+        (artviscx + artviscy) - S(ycoord, xcoord,1));
         
         % X-velocity
         ui(ycoord,xcoord,2) = u(ycoord,xcoord,2) - ((deltat(ycoord,xcoord))/(rho))*...
@@ -1057,7 +1071,7 @@ for ycoord = 2:jmax
         (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,2)-u(ycoord-1,xcoord,2))/(2*dy)+ ...
         (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,2)- ...
         2*u(ycoord,xcoord,2)+u(ycoord,xcoord-1,2))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,2)- ...
-        2*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^2)-fmanu(ycoord,xcoord));
+        2*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^2)-(artviscx+artviscy) - S(ycoord,xcoord,2));;
         
         % Y-velocity
         ui(ycoord,xcoord,3) = u(ycoord,xcoord,3) - ((deltat(ycoord,xcoord))/(rho))*...
@@ -1065,9 +1079,17 @@ for ycoord = 2:jmax
         (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,3)-u(ycoord-1,xcoord,3))/(2*dy)+ ...
         (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,3)- ...
         2*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,3)- ...
-        2*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^2)-fmanu(ycoord,xcoord));
+        2*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^2)-(artviscx+artviscy) - S(ycoord, xcoord, 3));
     end
 end
+
+% Boundary conditions
+ui(1,:,1) = 2.*u(2,:,1) - u(3,:,1);
+ui(jmax,:,1) = 2.*u(jmax-1,:,1) - u(jmax-2,:,1);
+ui(:,1,1) = 2.*u(:,2,1)-u(:,3,1);
+ui(:,imax,1) = 2.*(:,imax-1,1) - u(:,imax-2,1);
+
+u = ui;
 
 end
 %************************************************************************
@@ -1203,6 +1225,14 @@ if imms==1
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
+
+for mode = 1:3
+    for ycoord = 1:jmax
+        for xcoord = 1:imax
+            de(ycoord, xcoord, mode) = u(ycoord,xcoord,mode) - umms(ycoord,xcoord,mode);
+        end
+    end
+end
 
 
 
