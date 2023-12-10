@@ -869,12 +869,12 @@ nu = rmu./rho;
 for xcoord = 2:imax-1
     for ycoord = 2:jmax-1
         beta(ycoord, xcoord) = max(u(ycoord, xcoord, 2), rkappa .* vel2ref);
-        beta2(ycoord, xcoord) = beta(ycoord, xcoord).^2;
-        lambda_x(ycoord, xcoord) = 0.5 .* (abs(u(ycoord, xcoord, 2)) + sqrt(u(ycoord, xcoord, 2) + 4.*beta.^2));
-        lambda_y(ycoord, xcoord) = 0.5 .* (abs(u(ycoord, xcoord, 3)) + sqrt(u(ycoord, xcoord, 3) + 4.*beta.^2));
+        beta2(ycoord, xcoord) = beta(ycoord, xcoord).^two;
+        lambda_x(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 2)) + sqrt(u(ycoord, xcoord, 2) + four.*beta.^two));
+        lambda_y(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 3)) + sqrt(u(ycoord, xcoord, 3) + four.*beta.^two));
         lambda_max(ycoord, xcoord) = max(lambda_x(ycoord, xcoord), lambda_y(ycoord, xcoord));
         deltatc = min(dx, dy) ./ abs(lambda_max);
-        deltatd = (dx.*dy)./(4.*nu);
+        deltatd = (dx.*dy)./(f.*nu);
         dt(ycoord, xcoord) = cfl * min(deltatc, deltatd);
     end
 end
@@ -919,9 +919,9 @@ global lambda_x lambda_y lambda_max beta2
 
 for xcoord = 2:imax-1
     for ycoord = 2:jmax-1
-        deriv4p(xcoord, ycoord) = (u(ycoord,xcoord+2,3)-4.*u(ycoord, xcoord+1,3) + ...
-            6.*u(ycoord, xcoord,3) - 4.*u(xcoord-1, ycoord,3) + ...
-            u(ycoord, xcoord-2,3))./(dx.^4);
+        deriv4p(xcoord, ycoord) = (u(ycoord,xcoord+2,3)-4.0.*u(ycoord, xcoord+1,3) + ...
+            6.*u(ycoord, xcoord,3) - 4.0.*u(xcoord-1, ycoord,3) + ...
+            u(ycoord, xcoord-2,3))./(dx.^4.0);
         artviscx(ycoord, xcoord) = (((-abs(lambda_x(xcoord, ycoord))*Cx)/(beta2)).*deriv4p) 
         artviscy(ycoord, xcoord) = - (((abs(lambda_y(xcoord,ycoord)).*Cx)./(beta2)).*deriv4p);
     end
@@ -961,7 +961,7 @@ global artviscx artviscy dt s u
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-
+% U/G student, SKIP
 
 
 
@@ -1002,7 +1002,7 @@ global artviscx artviscy dt s u
 % !************************************************************** */
 
 
-
+% U/G student, SKIP
 
 end
 %************************************************************************
@@ -1040,9 +1040,31 @@ global u uold artviscx artviscy dt s
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-
-
-
+for ycoord = 2:jmax
+    for xcoord = 2:imax
+        % Pressure
+        ui(ycoord, xcoord, 1) = u(ycoord, xcoord, 1) - beta2(ycoord, xcoord)*...
+        dt((rho * (u(ycoord, xcoord+1,2)-u(ycoord,xcoord-1,2)))/(2*dx) + ...
+        (rho*(u(ycoord+1, xcoord, 3)-u(ycoord-1,xcoord,3)))/(2*dy) - ...
+        S(ycoord, xcoord) - fmanu(ycoord, xcoord));
+        
+        % X-velocity
+        ui(ycoord,xcoord,2) = u(ycoord,xcoord,2) - ((deltat(ycoord,xcoord))/(rho))*...
+        ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,2)-u(ycoord,xcoord-1,2))/(2*dx)+ ...
+        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,2)-u(ycoord-1,xcoord,2))/(2*dy)+ ...
+        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,2)- ...
+        2*u(ycoord,xcoord,2)+u(ycoord,xcoord-1,2))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,2)- ...
+        2*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^2)-fmanu(ycoord,xcoord));
+        
+        % Y-velocity
+        ui(ycoord,xcoord,3) = u(ycoord,xcoord,3) - ((deltat(ycoord,xcoord))/(rho))*...
+        ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,3)-u(ycoord,xcoord-1,3))/(2*dx)+ ...
+        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,3)-u(ycoord-1,xcoord,3))/(2*dy)+ ...
+        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,3)- ...
+        2*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,3)- ...
+        2*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^2)-fmanu(ycoord,xcoord));
+    end
+end
 
 end
 %************************************************************************
@@ -1104,6 +1126,26 @@ global u uold dt fp1
 % !************************************************************** */
 
 
+for xcoord = 2:imax - 1
+    for ycoord = 2:jmax - 1
+        
+        % Residual of pressure
+        
+        % Residual of velocity in x-direction
+            res_x(ycoord, xcoord) = (ui(ycoord, xcoord, 2) ...
+                -u(ycoord, xcoord, 2))/(dt)+ui(ycoord,xcoord,2) * (ui(ycoord, xcoord+1,2) ...
+                -ui(ycoord,xcoord-1,2))/(2*dx) - u(ycoord,xcoord,3)*(ui(ycoord,xcoord+1,2) ...
+                -2*ui(ycoord,xcoord,2)+ui(ycoord,xcoord-1,2))/(dx^2);
+        % Residual of velocity in y-direction
+            res_y(ycoord,xcoord) = (ui(ycoord,xcoord,3)-u(ycoord,xcoord,3))/(dt)...
+            + ui(ycoord,xcoord,3)*(ui(ycoord+1,xcoord,3)-ui(ycoord-1,xcoord,3))/...
+            (2*dy)-u(ycoord,xcoord,2)*(ui(ycoord+1,xcoord,3)-2*ui(ycoord,xcoord,3) ...
+                +ui(ycoord-1,xcoord,3))/(dy^2);
+            res(ycoord,xcoord) = [res_p, res_x, res_y];
+    end
+end
+% Norm
+% Compare
 
 
 
