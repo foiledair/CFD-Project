@@ -55,7 +55,7 @@ six    = 6.0;
 
 %--------- User sets inputs here  --------
 
-nmax = 500;        % Maximum number of iterations
+nmax = 10000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
 imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
@@ -1059,49 +1059,51 @@ global u uold artviscx artviscy dt s
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
-ui=zeros(imax);
-
 for xcoord = 2:jmax-1
     for ycoord = 2:imax-1
         % Pressure
-        ui(xcoord, ycoord, 1) = u(xcoord, ycoord, 1) - beta2(xcoord, ycoord)*...
-        dt(xcoord,ycoord).*((rho * (u(xcoord+1, ycoord,2)-u(xcoord-1,ycoord,2)))/(two*dx) + ...
-        (rho*(u(xcoord, ycoord+1, 3)-u(xcoord,ycoord-1,3)))/(two*dy) - ...
-        (artviscx(xcoord,ycoord) + artviscy(xcoord,ycoord)) - s(xcoord, ycoord,1));
+%         term1 = uold(xcoord,ycoord,1);
+%         term2 = -beta2(xcoord,ycoord).*dt(xcoord,ycoord);
+%         term3 = rho .* ((uold(xcoord+1,ycoord,2)-uold(xcoord-1,ycoord,2))/(2*dx));
+%         term4 = rho .* ((uold(xcoord,ycoord+1,3)-uold(xcoord,ycoord-1,3))./(2*dy));
+%         term5 = -(artviscx(xcoord,ycoord) + artviscy(xcoord,ycoord)) - umms(xcoord,ycoord,1);
+        % u(xcoord,ycoord,1) = term1 + (term2.*(term3 + term4 + term5));
+        u(xcoord,ycoord,1) = (uold(xcoord,ycoord,1))+((-beta2(xcoord,ycoord).*dt(xcoord,ycoord)).*(rho .* ((uold(xcoord+1,ycoord,2)-uold(xcoord-1,ycoord,2))/(2*dx))+rho .* ((uold(xcoord,ycoord+1,3)-uold(xcoord,ycoord-1,3))./(2*dy))+-(artviscx(xcoord,ycoord) + artviscy(xcoord,ycoord)) - s(xcoord,ycoord,1)));
         
         % X-velocity
-        term1 = u(xcoord,ycoord,2);
+        term1 = uold(xcoord,ycoord,2);
         term2 = (dt(xcoord,ycoord))./rho;
-        term3 = rho .* u(xcoord,ycoord,2) .* ((u(xcoord+1,ycoord,2) - u(xcoord-1,ycoord,2))/(2*dx));
-        term4 = rho .* u(xcoord,ycoord,3) .* ((u(xcoord,ycoord+1,2) - u(xcoord,ycoord-1,2))/(2*dy));
-        term5 = (u(xcoord+1, ycoord,1)-u(xcoord-1,ycoord,1))/(2*dx);
-        term6 = -rmu .* ((u(xcoord+1,ycoord,2)-(2.*u(xcoord,ycoord,2))+u(xcoord-1,ycoord,2))/(dx.^2));
-        term7 = -rmu .* ((u(xcoord,ycoord+1,2)-(2.*u(xcoord,ycoord,2)) + u(xcoord,ycoord-1,2))/(dy.^2));
-        term8 = -umms(xcoord,ycoord,2);
+        term3 = rho .* uold(xcoord,ycoord,2) .* ((uold(xcoord+1,ycoord,2) - uold(xcoord-1,ycoord,2))/(2*dx));
+        term4 = rho .* uold(xcoord,ycoord,3) .* ((uold(xcoord,ycoord+1,2) - uold(xcoord,ycoord-1,2))/(2*dy));
+        term5 = (uold(xcoord+1, ycoord,1)-uold(xcoord-1,ycoord,1))/(2*dx);
+        term6 = -rmu .* ((uold(xcoord+1,ycoord,2)-(2.*uold(xcoord,ycoord,2))+uold(xcoord-1,ycoord,2))/(dx.^2));
+        term7 = -rmu .* ((uold(xcoord,ycoord+1,2)-(2.*uold(xcoord,ycoord,2)) + uold(xcoord,ycoord-1,2))/(dy.^2));
+        %term8 = -umms(xcoord,ycoord,2).*0;
+        term8 = -s(xcoord,ycoord,2);
         
-        ui(xcoord,ycoord,2) = term1 - (term2.*(term3+term4+term5+term6+term7+term8));
+        u(xcoord,ycoord,2) = term1 - (term2.*(term3+term4+term5+term6+term7+term8));
         
         % Y-velocity
-        term1 = u(xcoord,ycoord,3);
+        term1 = uold(xcoord,ycoord,3);
         term2 = (dt(xcoord,ycoord))./rho;
-        term3 = rho .* u(xcoord,ycoord,2) .* ((u(xcoord+1,ycoord,3) - u(xcoord-1,ycoord,3))/(2*dx));
-        term4 = rho .* u(xcoord,ycoord,3) .* ((u(xcoord,ycoord+1,3) - u(xcoord,ycoord-1,3))/(2*dy));
-        term5 = (u(xcoord+1, ycoord,1)-u(xcoord-1,ycoord,1))/(2*dy);
-        term6 = -rmu .* ((u(xcoord+1,ycoord,3)-(2.*u(xcoord,ycoord,3))+u(xcoord-1,ycoord,3))/(dx.^2));
-        term7 = -rmu .* ((u(xcoord,ycoord+1,3)-(2.*u(xcoord,ycoord,3)) + u(xcoord,ycoord-1,3))/(dy.^2));
-        term8 = -umms(xcoord,ycoord,3);
+        term3 = rho .* uold(xcoord,ycoord,2) .* ((uold(xcoord+1,ycoord,3) - uold(xcoord-1,ycoord,3))/(2*dx));
+        term4 = rho .* uold(xcoord,ycoord,3) .* ((uold(xcoord,ycoord+1,3) - uold(xcoord,ycoord-1,3))/(2*dy));
+        term5 = (uold(xcoord, ycoord+1,1)-uold(xcoord,ycoord-1,1))/(2*dy);
+        term6 = -rmu .* ((uold(xcoord+1,ycoord,3)-(2.*uold(xcoord,ycoord,3))+uold(xcoord-1,ycoord,3))/(dx.^2));
+        term7 = -rmu .* ((uold(xcoord,ycoord+1,3)-(2.*uold(xcoord,ycoord,3)) + uold(xcoord,ycoord-1,3))/(dy.^2));
+        %term8 = -umms(xcoord,ycoord,3).*0;
+        term8 = -s(xcoord,ycoord,3);
         
-        ui(xcoord,ycoord,3) = term1 - (term2.*(term3+term4+term5+term6+term7+term8));
+        u(xcoord,ycoord,3) = term1 - (term2.*(term3+term4+term5+term6+term7+term8));
     end
 end
 
 % Boundary conditions
-ui(:,1,1) = two.*u(:,2,1) - u(:,3,1);
-ui(:,jmax,1) = two.*u(:,jmax-1,1) - u(:,jmax-2,1);
-ui(1,:,1) = two.*u(2,:,1)-u(3,:,1);
-ui(imax,:,1) = two.*u(imax-1,:,1) - u(imax-2,:,1);
+u(:,1,1) = two.*uold(:,2,1) - uold(:,3,1);
+u(:,jmax,1) = two.*uold(:,jmax-1,1) - uold(:,jmax-2,1);
+u(1,:,1) = two.*uold(2,:,1)-uold(3,:,1);
+u(imax,:,1) = two.*uold(imax-1,:,1) - uold(imax-2,:,1);
 
-u = ui;
 
 end
 %************************************************************************
@@ -1183,14 +1185,10 @@ end
 % resl(:,:,2) = res_x(:,:);
 % resl(:,:,3) = res_y(:,:);
 
-L2p = sqrt((sum(sum(abs(res_p))))./(numel(res_p)));
-L2x = sqrt((sum(sum(abs(res_x))))./(numel(res_x)));
-L2y = sqrt((sum(sum(abs(res_y))))./(numel(res_y)));
+L2p = norm(res_p);
+L2x = norm(res_x);
+L2y = norm(res_y);
 res = [L2p, L2x, L2y];
-if n == 1
-    resinit = res;
-    L2init = sqrt((sum(sum(abs(resinit))))./(numel(resinit)));
-end
 conp = abs(L2p ./ abs(L2init));
 conx = abs(L2x ./ abs(L2init));
 cony = abs(L2y ./ abs(L2init));
@@ -1200,16 +1198,21 @@ conv = min([conp, conx, cony]);
 
 
 % Write iterative residuals every 10 iterations
-if ( (mod(n,10)==0)||(n==ninit) )
-    fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3) );
-    fprintf('%d   %e   %e   %e   %e   %e\n',n, rtime, dtmin, res(1), res(2), res(3) );
+% if ( (mod(n,10)==0)||(n==ninit) )
+%     fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3) );
+%     fprintf('%d   %e   %e   %e   %e   %e\n',n, rtime, dtmin, res(1), res(2), res(3) );
+%     % Maybe a need to format this better
+% end
+if ( (mod(n,20)==0)||(n==ninit) )
+    %fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3) );
+    fprintf('%d    %e \n',n,conv);
     % Maybe a need to format this better
 end
 
-% Write header for iterative residuals every 200 iterations
-if ( (mod(n,200)==0)||(n==ninit) )
-    fprintf('Iter. Time (s)   dt (s)      Continuity    x-Momentum    y-Momentum\n');
-end
+% % Write header for iterative residuals every 200 iterations
+% if ( (mod(n,200)==0)||(n==ninit) )
+%     fprintf('Iter. Time (s)   dt (s)      Continuity    x-Momentum    y-Momentum\n');
+% end
 
 end
 
