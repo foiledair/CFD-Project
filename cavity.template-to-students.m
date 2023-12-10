@@ -1125,7 +1125,6 @@ global u uold dt fp1
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-
 for xcoord = 2:imax - 1
     for ycoord = 2:jmax - 1
         
@@ -1147,11 +1146,19 @@ for xcoord = 2:imax - 1
         (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,3)- ...
         2*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,3)- ...
         2*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^2)-fmanu(ycoord,xcoord);
-        
+
     end
 end
-% Norm
-% Compare
+res = [res_p, res_x, res_y];
+for counter = 1:3
+    L1(counter) = sum(abs(res(n)))/numel(res(n));
+    L2(counter) = sqrt((sum(abs(res(n))).^2)/numel(res(n)));
+    L3(counter) = max(res(n));
+end
+if n == 1
+    resinit(n) = res(n);
+end
+conv(n) = abs(res(n))./abs(resinit(n));
 
 
 
