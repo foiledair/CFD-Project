@@ -27,8 +27,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 33;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
+imax = 65;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -55,7 +55,7 @@ six    = 6.0;
 
 %--------- User sets inputs here  --------
 
-nmax = 2;        % Maximum number of iterations
+nmax = 500;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
 imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
@@ -859,7 +859,7 @@ global u dt
 % !************************************************************** */
 % Local time step
 
-global lambda_x lambda_y lambda_max beta beta2
+global lambda_x lambda_y lambda_max beta2 two
 lambda_x = zeros(imax - 1);
 lambda_y = lambda_x;
 lambda_max = lambda_x;
@@ -868,18 +868,17 @@ dt = zeros(imax - 2);
 nu = rmu./rho;
 for xcoord = 2:imax-1
     for ycoord = 2:jmax-1
-        beta(ycoord, xcoord) = max(u(ycoord, xcoord, 2), rkappa .* vel2ref);
-        beta2(ycoord, xcoord) = beta(ycoord, xcoord).^2;
-        lambda_x(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 2)) + sqrt(u(ycoord, xcoord, 2) + four.*beta2(ycoord,xcoord)));
-        lambda_y(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 3)) + sqrt(u(ycoord, xcoord, 3) + four.*beta2(ycoord,xcoord)));
+        beta2(ycoord, xcoord) = max(u(ycoord, xcoord, 2)^two+u(ycoord,xcoord,3)^two, rkappa .* vel2ref);
+        lambda_x(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 2)) + sqrt(u(ycoord, xcoord, 2)^2 + four.*beta2(ycoord,xcoord)));
+        lambda_y(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 3)) + sqrt(u(ycoord, xcoord, 3)^2 + four.*beta2(ycoord,xcoord)));
         lambda_max(ycoord, xcoord) = max(lambda_x(ycoord, xcoord), lambda_y(ycoord, xcoord));
-        deltatc = min(dx, dy) ./ abs(lambda_max);
+        deltatc(ycoord,xcoord) = min(dx, dy) ./ lambda_max(ycoord,xcoord);
         deltatd = (dx.*dy)./(4*nu);
-        dt(ycoord, xcoord) = cfl * min(min(min(deltatc, deltatd)));
+        dt(ycoord, xcoord) = cfl * min(deltatc(ycoord,xcoord), deltatd);
         dtmin(ycoord,xcoord) = dt(ycoord,xcoord);
     end
 end
-disp(dtmin)
+
 
 end
 %************************************************************************
