@@ -14,6 +14,7 @@ global imax jmax neq nmax
 global zero tenth sixth fifth fourth third half one two three four six
 global iterout imms isgs irstr ipgorder lim cfl Cx Cy toler rkappa Re pinf uinf rho rhoinv xmin xmax ymin ymax Cx2 Cy2 fsmall
 global rlength rmu vel2ref dx dy rpi phi0 phix phiy phixy apx apy apxy fsinx fsiny fsinxy
+global lambda_x lambda_y lambda_max
 
 %**Use these variables cautiously as these are globally accessible from all functions.**
 
@@ -486,14 +487,24 @@ function bndry(~)
 global zero two half imax jmax uinf
 global u
 
-% This applies the cavity boundary conditions
-
+% This applies the cavity boundary condition
 
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
+% u(:,:,1) = pressure
+% u(:,:,2) = u
+% u(:,:,3) = v
 
+% U
+u(1,:,2) = uinf;        % Flow
+u(:,end,2) = 0;         % No flow through right wall
+u(:,1,2) = 0;           % No flow through left wall
+u(end,:,2) = 0;         % No flow through bottom wall
+
+% V
+u(end,:,3) = 0;         % No flow through bottom wall
 
 end
 %************************************************************************
@@ -821,10 +832,10 @@ end
 %************************************************************************
 function [dtmin] = compute_time_step(dtmin)
 %
-%Uses global variable(s): one, two, four, half, fourth
+%Uses global constants: one, two, four, half, fourth
 %Uses global variable(s): vel2ref, rmu, rho, dx, dy, cfl, rkappa, imax, jmax
 %Uses: u
-%To Modify: dt, dtmin
+%To return: dt, dtmin
 
 % i                        % i index (x direction)
 % j                        % j index (y direction)
@@ -841,12 +852,32 @@ global four half fourth
 global vel2ref rmu rho dx dy cfl rkappa imax jmax
 global u dt
 
+global dt dtmin
 
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
+% Local time step
 
+global lambda_x lambda_y lambda_max beta beta2
+lambda_x = zeros(imax - 1);
+lambda_y = lambda_x;
+lambda_max = lambda_x;
+dt = zeros(imax - 2);
 
+nu = rmu./rho;
+for xcoord = 2:imax-1
+    for ycoord = 2:jmax-1
+        beta(ycoord, xcoord) = max(u(ycoord, xcoord, 2), rkappa .* vel2ref);
+        beta2(ycoord, xcoord) = beta(ycoord, xcoord).^two;
+        lambda_x(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 2)) + sqrt(u(ycoord, xcoord, 2) + four.*beta2));
+        lambda_y(ycoord, xcoord) = half .* (abs(u(ycoord, xcoord, 3)) + sqrt(u(ycoord, xcoord, 3) + four.*beta2));
+        lambda_max(ycoord, xcoord) = max(lambda_x(ycoord, xcoord), lambda_y(ycoord, xcoord));
+        deltatc = min(dx, dy) ./ abs(lambda_max);
+        deltatd = (dx.*dy)./(f.*nu);
+        dt(ycoord, xcoord) = cfl * min(deltatc, deltatd);
+    end
+end
 
 
 end
@@ -878,6 +909,7 @@ global two four six half
 global imax jmax lim rho dx dy Cx Cy Cx2 Cy2 fsmall vel2ref rkappa
 global u
 global artviscx artviscy
+global lambda_x lambda_y lambda_max beta2
 
 
 % !************************************************************** */
@@ -885,8 +917,17 @@ global artviscx artviscy
 % !************************************************************** */
 
 
-
-
+for ycoord = 2:jmax-1
+    for xcoord = 2:imax-1
+        d4pdx4(ycoord, xcoord) = (u(ycoord,xcoord+2,3)-four.*u(ycoord, xcoord+1,3) + ...
+            six.*u(ycoord, xcoord,3) - four.*u(xcoord-1, ycoord,3) + ...
+            u(ycoord, xcoord-2,3))./(dx.^four);
+        d4pdy4(ycoord, xcoord) = (u(ycoord+2,xcoord,3)-four.*u(ycoord+1, xcoord,3) + ...
+            six.*u(ycoord, xcoord,3) - four.*u(ycoord-1, xcoord,3) + ...
+            u(ycoord-2, xcoord,3))./(dy.^4.0);
+        artviscx(ycoord, xcoord) = -lambda_x(ycoord, xcoord).*Cx*dx^3/beta2.*d4pdx4(ycoord,xcoord); 
+        artviscy(ycoord, xcoord) = -lambda_y(ycoord, xcoord).*Cy*dy^3/beta2.*d4pdy4(ycoord,xcoord);
+    end
 end
 %************************************************************************
 function SGS_forward_sweep(~)
@@ -923,7 +964,7 @@ global artviscx artviscy dt s u
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-
+% U/G student, SKIP
 
 
 
@@ -964,7 +1005,7 @@ global artviscx artviscy dt s u
 % !************************************************************** */
 
 
-
+% U/G student, SKIP
 
 end
 %************************************************************************
@@ -1002,9 +1043,31 @@ global u uold artviscx artviscy dt s
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-
-
-
+for ycoord = 2:jmax
+    for xcoord = 2:imax
+        % Pressure
+        ui(ycoord, xcoord, 1) = u(ycoord, xcoord, 1) - beta2(ycoord, xcoord)*...
+        dt((rho * (u(ycoord, xcoord+1,2)-u(ycoord,xcoord-1,2)))/(2*dx) + ...
+        (rho*(u(ycoord+1, xcoord, 3)-u(ycoord-1,xcoord,3)))/(2*dy) - ...
+        S(ycoord, xcoord) - fmanu(ycoord, xcoord));
+        
+        % X-velocity
+        ui(ycoord,xcoord,2) = u(ycoord,xcoord,2) - ((deltat(ycoord,xcoord))/(rho))*...
+        ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,2)-u(ycoord,xcoord-1,2))/(2*dx)+ ...
+        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,2)-u(ycoord-1,xcoord,2))/(2*dy)+ ...
+        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,2)- ...
+        2*u(ycoord,xcoord,2)+u(ycoord,xcoord-1,2))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,2)- ...
+        2*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^2)-fmanu(ycoord,xcoord));
+        
+        % Y-velocity
+        ui(ycoord,xcoord,3) = u(ycoord,xcoord,3) - ((deltat(ycoord,xcoord))/(rho))*...
+        ((rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,3)-u(ycoord,xcoord-1,3))/(2*dx)+ ...
+        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,3)-u(ycoord-1,xcoord,3))/(2*dy)+ ...
+        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,3)- ...
+        2*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,3)- ...
+        2*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^2)-fmanu(ycoord,xcoord));
+    end
+end
 
 end
 %************************************************************************
@@ -1065,7 +1128,40 @@ global u uold dt fp1
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
+for xcoord = 2:imax - 1
+    for ycoord = 2:jmax - 1
+        
+        % Pressure
+        res_p(ycoord,xcoord) = (rho * (u(ycoord, xcoord+1,2)-u(ycoord,xcoord-1,2)))/(2*dx) + ...
+        (rho*(u(ycoord+1, xcoord, 3)-u(ycoord-1,xcoord,3)))/(2*dy) - ...
+        S(ycoord, xcoord) - fmanu(ycoord, xcoord);
+        
+        % X-velocity
+        res_x(ycoord,xcoord) = (rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,2)-u(ycoord,xcoord-1,2))/(2*dx)+ ...
+        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,2)-u(ycoord-1,xcoord,2))/(2*dy)+ ...
+        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,2)- ...
+        2*u(ycoord,xcoord,2)+u(ycoord,xcoord-1,2))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,2)- ...
+        2*u(ycoord,xcoord,2)+u(ycoord-1,xcoord,2))/(dy^2)-fmanu(ycoord,xcoord);
+        
+        % Y-velocity
+        res_y(ycoord,xcoord) = (rho*u(ycoord,xcoord,2))*(u(ycoord,xcoord+1,3)-u(ycoord,xcoord-1,3))/(2*dx)+ ...
+        (rho*u(ycoord,xcoord,3))*(u(ycoord+1,xcoord,3)-u(ycoord-1,xcoord,3))/(2*dy)+ ...
+        (u(ycoord,xcoord+1,1)-u(ycoord,xcoord-1,1))/(2*dx)-(mu)*(u(ycoord,xcoord+1,3)- ...
+        2*u(ycoord,xcoord,3)+u(ycoord,xcoord-1,3))/(dx^2)-(-mu)*(u(ycoord+1,xcoord,3)- ...
+        2*u(ycoord,xcoord,3)+u(ycoord-1,xcoord,3))/(dy^2)-fmanu(ycoord,xcoord);
 
+    end
+end
+res = [res_p, res_x, res_y];
+for counter = 1:3
+    L1(counter) = sum(abs(res(n)))/numel(res(n));
+    L2(counter) = sqrt((sum(abs(res(n))).^2)/numel(res(n)));
+    L3(counter) = max(res(n));
+end
+if n == 1
+    resinit(n) = res(n);
+end
+conv(n) = abs(res(n))./abs(resinit(n));
 
 
 
