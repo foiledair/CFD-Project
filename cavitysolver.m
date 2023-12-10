@@ -63,7 +63,7 @@ irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 fo
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.9;      % CFL number used to determine time step
+cfl  = 1.0;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-5; 	% Tolerance for iterative residual convergence
@@ -920,8 +920,8 @@ global lambda_x lambda_y lambda_max beta2
 % !************************************************************** */
 
 
-for xcoord = 3:jmax-2
-    for ycoord = 3:imax-2
+for ycoord = 3:jmax-2
+    for xcoord = 3:imax-2
         d4pdx4(xcoord, ycoord) = (u(xcoord,ycoord+2,3)-four.*u(xcoord, ycoord+1,3) + ...
             six.*u(xcoord, ycoord,3) - four.*u(xcoord, ycoord-1,3) + ...
             u(xcoord, ycoord-2,3))./(dx.^four);
@@ -1070,20 +1070,28 @@ for xcoord = 2:jmax-1
         (artviscx(xcoord,ycoord) + artviscy(xcoord,ycoord)) - s(xcoord, ycoord,1));
         
         % X-velocity
-        ui(xcoord,ycoord,2) = u(xcoord,ycoord,2) - ((dt(xcoord,ycoord))/(rho))*...
-        ((rho*u(xcoord,ycoord,2))*(u(xcoord+1,ycoord,2)-u(xcoord-1,ycoord,2))/(two*dx)+ ...
-        (rho*u(xcoord,ycoord,3))*(u(xcoord,ycoord+1,2)-u(xcoord,ycoord-1,2))/(two*dy)+ ...
-        (u(xcoord+1,ycoord,1)-u(xcoord-1,ycoord,1))/(two*dx)-(rmu)*(u(xcoord+1,ycoord,2)- ...
-        two*u(xcoord,ycoord,2)+u(xcoord-1,ycoord,2))/(dx^two)-(-rmu)*(u(xcoord,ycoord+1,2)- ...
-        two*u(xcoord,ycoord,2)+u(xcoord,ycoord-1,2))/(dy^two)-(artviscx(xcoord,ycoord)+artviscy(xcoord,ycoord)) - umms(xcoord,ycoord,2));
+        term1 = u(xcoord,ycoord,2);
+        term2 = (dt(xcoord,ycoord))./rho;
+        term3 = rho .* u(xcoord,ycoord,2) .* ((u(xcoord+1,ycoord,2) - u(xcoord-1,ycoord,2))/(2*dx));
+        term4 = rho .* u(xcoord,ycoord,3) .* ((u(xcoord,ycoord+1,2) - u(xcoord,ycoord-1,2))/(2*dy));
+        term5 = (u(xcoord+1, ycoord,1)-u(xcoord-1,ycoord,1))/(2*dx);
+        term6 = -rmu .* ((u(xcoord+1,ycoord,2)-(2.*u(xcoord,ycoord,2))+u(xcoord-1,ycoord,2))/(dx.^2));
+        term7 = -rmu .* ((u(xcoord,ycoord+1,2)-(2.*u(xcoord,ycoord,2)) + u(xcoord,ycoord-1,2))/(dy.^2));
+        term8 = -umms(xcoord,ycoord,2);
+        
+        ui(xcoord,ycoord,2) = term1 - (term2.*(term3+term4+term5+term6+term7+term8));
         
         % Y-velocity
-        ui(xcoord,ycoord,3) = u(xcoord,ycoord,3) - ((dt(xcoord,ycoord))/(rho))*...
-        ((rho*u(xcoord,ycoord,2))*(u(xcoord+1,ycoord,3)-u(xcoord-1,ycoord,3))/(two*dx)+ ...
-        (rho*u(xcoord,ycoord,3))*(u(xcoord,ycoord+1,3)-u(xcoord,ycoord-1,3))/(two*dy)+ ...
-        (u(xcoord+1,ycoord,1)-u(xcoord-1,ycoord,1))/(two*dx)-(rmu)*(u(xcoord+1,ycoord,3)- ...
-        two*u(xcoord,ycoord,3)+u(xcoord-1,ycoord,3))/(dx^two)-(-rmu)*(u(xcoord,ycoord+1,3)- ...
-        two*u(xcoord,ycoord,3)+u(xcoord,ycoord-1,3))/(dy^two)-(artviscx(xcoord,ycoord)+artviscy(xcoord,ycoord)) - umms(xcoord, ycoord, 3));
+        term1 = u(xcoord,ycoord,3);
+        term2 = (dt(xcoord,ycoord))./rho;
+        term3 = rho .* u(xcoord,ycoord,2) .* ((u(xcoord+1,ycoord,3) - u(xcoord-1,ycoord,3))/(2*dx));
+        term4 = rho .* u(xcoord,ycoord,3) .* ((u(xcoord,ycoord+1,3) - u(xcoord,ycoord-1,3))/(2*dy));
+        term5 = (u(xcoord+1, ycoord,1)-u(xcoord-1,ycoord,1))/(2*dy);
+        term6 = -rmu .* ((u(xcoord+1,ycoord,3)-(2.*u(xcoord,ycoord,3))+u(xcoord-1,ycoord,3))/(dx.^2));
+        term7 = -rmu .* ((u(xcoord,ycoord+1,3)-(2.*u(xcoord,ycoord,3)) + u(xcoord,ycoord-1,3))/(dy.^2));
+        term8 = -umms(xcoord,ycoord,3);
+        
+        ui(xcoord,ycoord,3) = term1 - (term2.*(term3+term4+term5+term6+term7+term8));
     end
 end
 
@@ -1144,7 +1152,7 @@ function [res, resinit, conv] = check_iterative_convergence...
 % j                        % j index (y direction)
 % k                        % k index (# of equations)
 
-global zero beta2
+global zero beta2 L2init
 global imax jmax neq fsmall rho
 global u uold dt fp1
 
@@ -1158,8 +1166,8 @@ res_p = zeros(imax - 2);
 res_x = res_p; res_y = res_p;
 
 
-for ycoord = 2:imax - 1
-    for xcoord = 2:jmax - 1
+for ycoord = 2:jmax - 1
+    for xcoord = 2:imax - 1
         
         % Pressure
         res_p(xcoord,ycoord) = (u(xcoord,ycoord,1)-uold(xcoord,ycoord,1))./(dt(xcoord,ycoord).*beta2(xcoord,ycoord));
@@ -1171,9 +1179,9 @@ for ycoord = 2:imax - 1
         res_y(xcoord,ycoord) = -rho.*(u(xcoord,ycoord,3)-uold(xcoord,ycoord,3))./(dt(xcoord,ycoord));
     end
 end
-resl = res_p(:,:);
-resl(:,:,2) = res_x(:,:);
-resl(:,:,3) = res_y(:,:);
+% resl = res_p(:,:);
+% resl(:,:,2) = res_x(:,:);
+% resl(:,:,3) = res_y(:,:);
 
 L2p = sqrt((sum(sum(abs(res_p))))./(numel(res_p)));
 L2x = sqrt((sum(sum(abs(res_x))))./(numel(res_x)));
@@ -1183,9 +1191,9 @@ if n == 1
     resinit = res;
     L2init = sqrt((sum(sum(abs(resinit))))./(numel(resinit)));
 end
-conp = abs(L2p ./ abs(resinit));
-conx = abs(L2x ./ abs(resinit));
-cony = abs(L2y ./ abs(resinit));
+conp = abs(L2p ./ abs(L2init));
+conx = abs(L2x ./ abs(L2init));
+cony = abs(L2y ./ abs(L2init));
 conv = min([conp, conx, cony]);
 
 
@@ -1233,7 +1241,7 @@ if imms==1
 for mode = 1:3
     for xcoord = 1:jmax
         for ycoord = 1:imax
-            de(xcoord, ycoord, mode) = u(xcoord,ycoord,mode) - umms(xcoord,ycoord,mode);
+            de(xcoord, ycoord, mode) = sqrt((sum(sum(u(xcoord,ycoord,mode) - umms(xcoord,ycoord,mode))))./(numel(u)));
         end
     end
 end
