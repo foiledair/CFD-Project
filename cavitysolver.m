@@ -55,7 +55,7 @@ six    = 6.0;
 
 %--------- User sets inputs here  --------
 
-nmax = 10000;        % Maximum number of iterations
+nmax = 100000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
 imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
@@ -63,7 +63,7 @@ irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 fo
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 1.0;      % CFL number used to determine time step
+cfl  = 0.1;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-5; 	% Tolerance for iterative residual convergence
@@ -496,6 +496,9 @@ global u
 % u(:,:,1) = pressure
 % u(:,:,2) = u
 % u(:,:,3) = v
+% P
+
+
 
 % U
 u(:,jmax,2) = uinf;
@@ -853,7 +856,7 @@ function [dtmin] = compute_time_step(dtmin)
 
 global four half fourth
 global vel2ref rmu rho dx dy cfl rkappa imax jmax
-global u dt
+global u dt 
 
 % global dt dtmin
 
@@ -1157,6 +1160,7 @@ function [res, resinit, conv] = check_iterative_convergence...
 global zero beta2 L2init
 global imax jmax neq fsmall rho
 global u uold dt fp1
+global L2pinit L2xinit L2yinit
 
 % Compute iterative residuals to monitor iterative convergence
 
@@ -1181,18 +1185,21 @@ for ycoord = 2:jmax - 1
         res_y(xcoord,ycoord) = -rho.*(u(xcoord,ycoord,3)-uold(xcoord,ycoord,3))./(dt(xcoord,ycoord));
     end
 end
-% resl = res_p(:,:);
-% resl(:,:,2) = res_x(:,:);
-% resl(:,:,3) = res_y(:,:);
 
 L2p = norm(res_p);
 L2x = norm(res_x);
 L2y = norm(res_y);
+
+if n == 1;
+    L2pinit = norm(res_p);
+    L2xinit = norm(res_x);
+    L2yinit = norm(res_y);
+end
 res = [L2p, L2x, L2y];
-conp = abs(L2p ./ abs(L2init));
-conx = abs(L2x ./ abs(L2init));
-cony = abs(L2y ./ abs(L2init));
-conv = min([conp, conx, cony]);
+conp = L2p ./ L2pinit;
+conx = L2x ./ L2xinit;
+cony = L2y ./ L2yinit;
+conv = max([conp, conx, cony]);
 
 
 
@@ -1203,9 +1210,9 @@ conv = min([conp, conx, cony]);
 %     fprintf('%d   %e   %e   %e   %e   %e\n',n, rtime, dtmin, res(1), res(2), res(3) );
 %     % Maybe a need to format this better
 % end
-if ( (mod(n,20)==0)||(n==ninit) )
+if ( (mod(n,100)==0)||(n==ninit) )
     %fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3) );
-    fprintf('%d    %e \n',n,conv);
+    fprintf('%d    %e   %d\n',n,conv, dtmin(n));
     % Maybe a need to format this better
 end
 
