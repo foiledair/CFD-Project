@@ -956,10 +956,10 @@ d4pdy4(:,imax-1) = 2*d4pdy4(:,jmax-2) - d4pdy4(:,jmax-3);
 %Corners
 %BL
 d4pdx4(2,2) = ((two.*d4pdx4(3,2) - d4pdx4(4,2)) + (two.*d4pdx4(2,3) - d4pdx4(2,4)))./2;
-d4pdy4(2,2) = ((two.*d4pdy4(3,2) - d4pdy4(4,2)) + (tw0.*d4pdy4(2,3) - d4pdy4(2,4)))./2;
+d4pdy4(2,2) = ((two.*d4pdy4(3,2) - d4pdy4(4,2)) + (two.*d4pdy4(2,3) - d4pdy4(2,4)))./2;
 %BR
-d4pdx4(imax-1,2) = ((two.*d4pdx4(imax-2,2) - d4pdx4(imax-3,2)) + (two.*d4pdx4(imax,3) - d4pdx4(imax,4)))./2;
-d4pdy4(imax-1,2) = ((two.*d4pdy4(imax-2,2) - d4pdy4(imax-3,2)) + (two.*d4pdy4(imax,3) - d4pdy4(imax,4)))./2;
+d4pdx4(imax-1,2) = ((two.*d4pdx4(imax-2,2) - d4pdx4(imax-3,2)) + (two.*d4pdx4(imax-1,3) - d4pdx4(imax-1,4)))./2;
+d4pdy4(imax-1,2) = ((two.*d4pdy4(imax-2,2) - d4pdy4(imax-3,2)) + (two.*d4pdy4(imax-1,3) - d4pdy4(imax-1,4)))./2;
 %TL
 d4pdx4(2,jmax-1) = ((two.*d4pdx4(2,jmax-2) - d4pdx4(2,jmax-3)) + (two.*d4pdx4(3,jmax-1) - d4pdx4(4,jmax-1)))./2;
 d4pdy4(2,jmax-1) = ((two.*d4pdy4(2,jmax-2) - d4pdy4(2,jmax-3)) + (two.*d4pdy4(3,jmax-1) - d4pdy4(4,jmax-1)))./2;
