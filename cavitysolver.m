@@ -30,8 +30,8 @@ global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 % Coarse: 33x33
 % Medium: 65x65
 % Fine: 129x129
-imax = 129;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 129;   	% Number of points in the y-direction (use odd numbers only)
+imax = 65;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -70,7 +70,7 @@ cfl  = 0.9;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-8; 	% Tolerance for iterative residual convergence
-rkappa = 0.01;   	% Time derivative preconditioning constant
+rkappa = 0.001;   	% Time derivative preconditioning constant
 Re = 100.0;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
 uinf = 1.0;      % Lid velocity (m/s)
@@ -1234,7 +1234,7 @@ function [res, resinit, conv, normvec] = check_iterative_convergence...
 % j                        % j index (y direction)
 % k                        % k index (# of equations)
 
-global zero beta2 L2init nmax res_p res_x res_y normvec
+global zero beta2 L2init nmax res_p res_x res_y normvec conv
 global imax jmax neq fsmall rho
 global u uold dt fp1
 global L2pinit L2xinit L2yinit
@@ -1246,7 +1246,7 @@ global L2pinit L2xinit L2yinit
 % !************************************************************** */
 
 
-
+oldconv = conv;
 
 for ycoord = 2:jmax - 1
     for xcoord = 2:imax - 1
@@ -1266,14 +1266,17 @@ for ycoord = 2:jmax - 1
     end
 end
 
-L2p = norm(res_p);
-L2x = norm(res_x);
-L2y = norm(res_y);
+%L2p = norm(res_p);
+L2p = sqrt((sum(abs(res_p), 'all')).^2/(numel(res_p)));
+L2x = sqrt((sum(abs(res_x), 'all')).^2/(numel(res_x)));
+L2y = sqrt((sum(abs(res_y), 'all')).^2/(numel(res_y)));
+%L2x = norm(res_x);
+%L2y = norm(res_y);
 
 if n == 1;
-    L2pinit = norm(res_p);
-    L2xinit = norm(res_x);
-    L2yinit = norm(res_y);
+    L2pinit = sqrt((sum(abs(res_p), 'all')).^2/(numel(res_p)));
+    L2xinit = sqrt((sum(abs(res_x), 'all')).^2/(numel(res_x)));
+    L2yinit = sqrt((sum(abs(res_y), 'all')).^2/(numel(res_y)));
 end
 
 res = [L2p, L2x, L2y];
@@ -1286,15 +1289,16 @@ conv = max([conp, conx, cony]);
 
 
 
+
 % Write iterative residuals every 10 iterations
 % if ( (mod(n,10)==0)||(n==ninit) )
 %     fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3) );
 %     fprintf('%d   %e   %e   %e   %e   %e\n',n, rtime, dtmin, res(1), res(2), res(3) );
 %     % Maybe a need to format this better
 % end
-if ( (mod(n,100)==0)||(n==ninit) )
+if ( (mod(n,25)==0)||(n==ninit) )
     %fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3) );
-    fprintf('%d    %e   %d\n',n,conv, max(max(dtmin)));
+    fprintf('%d    %e   %d\n',n,conv, oldconv - conv);
     % Maybe a need to format this better
 end
 
