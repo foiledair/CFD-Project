@@ -301,7 +301,7 @@ if isConverged == 1
     x = linspace(1, imax, imax);
     y = linspace(1, jmax, jmax);
     figure("Position", [200 100 1500 800])
-    t = tiledlayout(1,2,"TileSpacing", "loose");
+    t = tiledlayout(1,3,"TileSpacing", "loose");
     nexttile;
     hold on
     contourf(x,y,u(:,:,2)',250,'LineColor', 'none');
@@ -311,6 +311,10 @@ if isConverged == 1
     contourf(x,y,u(:,:,3)',250,'LineColor','none');
     title("V-velocity");
         title(t, imax + " x " + jmax + " mesh, Re = 100, cfl = " + cfl + ", converged in " + n + " iterations");
+    nexttile;
+    hold on
+    contourf(x,y,u(:,:,1)',250,'LineColor','none');
+    title("Pressure");
     hold off
     fprintf('Solution converged in %d iterations!!!', n);
 end
@@ -955,12 +959,12 @@ global lambda_x lambda_y lambda_max beta2
 
 for ycoord = 3:jmax-2
     for xcoord = 3:imax-2
-        d4pdx4(xcoord, ycoord) = (u(xcoord,ycoord+2,3)-four.*u(xcoord, ycoord+1,3) + ...
-            six.*u(xcoord, ycoord,3) - four.*u(xcoord, ycoord-1,3) + ...
-            u(xcoord, ycoord-2,3))./(dx.^four);
-        d4pdy4(xcoord, ycoord) = (u(xcoord+2,ycoord,3)-four.*u(xcoord+1, ycoord,3) + ...
-            six.*u(xcoord, ycoord,3) - four.*u(xcoord-1, ycoord,3) + ...
-            u(xcoord-2, ycoord,3))./(dy.^four);
+        d4pdx4(xcoord, ycoord) = (u(xcoord,ycoord+2,1)-four.*u(xcoord, ycoord+1,1) + ...
+            six.*u(xcoord, ycoord,1) - four.*u(xcoord, ycoord-1,1) + ...
+            u(xcoord, ycoord-2,1))./(dx.^four);
+        d4pdy4(xcoord, ycoord) = (u(xcoord+2,ycoord,1)-four.*u(xcoord+1, ycoord,1) + ...
+            six.*u(xcoord, ycoord,1) - four.*u(xcoord-1, ycoord,1) + ...
+            u(xcoord-2, ycoord,1))./(dy.^four);
         artviscx(xcoord, ycoord) = -lambda_x(xcoord, ycoord).*Cx.*dx^3./beta2(xcoord,ycoord).*d4pdx4(xcoord,ycoord); 
         artviscy(xcoord, ycoord) = -lambda_y(xcoord, ycoord).*Cy.*dy.^3./beta2(xcoord,ycoord).*d4pdy4(xcoord,ycoord);
     end
@@ -1240,21 +1244,13 @@ end
 L2p = norm(res_p);
 L2x = norm(res_x);
 L2y = norm(res_y);
-% if L2p > 5e10
-%     disp("COCK");
-% elseif L2x > 5e10
-%     disp("SHITE");
-% elseif L2y > 5e10
-%     disp("FUCK");
-% else
-%     disp("Wee");
-% end
+
 if n == 1;
     L2pinit = norm(res_p);
     L2xinit = norm(res_x);
     L2yinit = norm(res_y);
 end
-%disp(L2pinit);
+
 res = [L2p, L2x, L2y];
 conp = L2p ./ L2pinit;
 conx = L2x ./ L2xinit;
