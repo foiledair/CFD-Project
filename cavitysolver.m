@@ -30,8 +30,8 @@ global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 % Coarse: 33x33
 % Medium: 65x65
 % Fine: 129x129
-imax = 33;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
+imax = 129;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 129;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -300,17 +300,25 @@ if isConverged == 0
 end
 
 if isConverged == 1
+    
+    % We weren't sure how the results were being exported, so we wrote
+    % our own, since we would be more familiar with how we did it our way
+
+    % Separate u matrix into several smaller matrices (3d => 2d)
     press = u(:,:,1);
     uvelo = u(:,:,2);
     vvelo = u(:,:,3);
     x = linspace(1, imax, imax);
     y = linspace(1, jmax, jmax);
+
+    % Plot pressure
     figure("Name", "Pressure","Position", [100 520 600 600])
     hold on
     contourf(x,y,u(:,:,1)',250,'LineColor', 'none');
     title("Pressure");
     hold off
 
+    % Plot x-velocity
     figure("Name", "U-velocity", "Position", [700 520 600 600]);
     hold on
     contourf(x,y,u(:,:,2)',250,'LineColor','none');
@@ -318,18 +326,22 @@ if isConverged == 1
         title("U-velocity, " + imax + " x " + jmax + " mesh, Re = 100, cfl = " + cfl + ", converged in " + n + " iterations");
     hold off
 
+    % Plot v-velocity
     figure("Name", "V-velocity", "Position", [1300 520 600 600]);
     hold on
     contourf(x,y,u(:,:,3)',250,'LineColor','none');
     title("V-velocity");
     hold off
-
+    
+    % Plot residuals
     figure("Name", "Residuals", "Position", [100 -80 600 600]);
     semilogy(normvec);
-    writematrix(rot90(normvec), 'NormVectors.txt', 'Delimiter','tab');
-    writematrix(rot90(press), 'pressurematrix.txt', 'Delimiter', 'tab');
-    writematrix(rot90(uvelo), 'uvelocitymatrix.txt', 'Delimiter', 'tab');
-    writematrix(rot90(vvelo), 'vvelocity.txt', 'Delimiter', 'tab');
+
+    % Export results
+    writematrix(normvec, 'z_NormVectors.txt', 'Delimiter','tab');
+    writematrix(rot90(press), 'z_pressurematrix.txt', 'Delimiter', 'tab');
+    writematrix(rot90(uvelo), 'z_uvelocitymatrix.txt', 'Delimiter', 'tab');
+    writematrix(rot90(vvelo), 'z_vvelocity.txt', 'Delimiter', 'tab');
     fprintf('Solution converged in %d iterations!!!', n);
 end
 % Calculate and Write Out Discretization Error Norms (will do this for MMS only)
