@@ -27,8 +27,11 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 33;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
+% Coarse: 33x33
+% Medium: 65x65
+% Fine: 129x129
+imax = 65;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -63,10 +66,10 @@ irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 fo
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.2;      % CFL number used to determine time step
+cfl  = 0.5;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
-toler = 1.e-5; 	% Tolerance for iterative residual convergence
+toler = 1.e-8; 	% Tolerance for iterative residual convergence
 rkappa = 0.01;   	% Time derivative preconditioning constant
 Re = 100.0;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
@@ -307,6 +310,7 @@ if isConverged == 1
     hold on
     contourf(x,y,u(:,:,3)',250,'LineColor','none');
     title("V-velocity");
+        title(t, imax + " x " + jmax + " mesh, Re = 100, cfl = " + cfl + ", converged in " + n + " iterations");
     hold off
     fprintf('Solution converged in %d iterations!!!', n);
 end
@@ -1250,7 +1254,7 @@ res_x = res_p; res_y = res_p;
 for ycoord = 2:jmax - 1
     for xcoord = 2:imax - 1
         if n == 1
-            uold(:,:,:) = -1;
+            uold(:,:,:) = -99.9;
         end
         
         % Pressure
