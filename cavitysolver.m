@@ -1,4 +1,4 @@
-function [PrsMatrix, uvelMatrix, vvelMatrix] = cavity_solver(~)
+ function [PrsMatrix, uvelMatrix, vvelMatrix] = cavity_solver(~)
 tic   %begin timer function
 %--- Variables for file handling ---
 %--- All files are globally accessible ---
@@ -66,7 +66,7 @@ irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 fo
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 1;      % CFL number used to determine time step
+cfl  = 0.9;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-8; 	% Tolerance for iterative residual convergence
@@ -225,6 +225,7 @@ isConverged = 0;
 res_p = zeros(imax - 2);
 res_x = res_p; res_y = res_p;
 normvec = zeros(nmax, 3);
+close all
 
 for n = ninit:nmax
     % Calculate time step
@@ -304,24 +305,31 @@ if isConverged == 1
     vvelo = u(:,:,3);
     x = linspace(1, imax, imax);
     y = linspace(1, jmax, jmax);
-    figure("Name", "1","Position", [200 100 1500 800])
-    t = tiledlayout(1,3,"TileSpacing", "loose");
-    nexttile;
+    figure("Name", "Pressure","Position", [100 520 600 600])
     hold on
-    contourf(x,y,u(:,:,2)',250,'LineColor', 'none');
-    title("U-velocity");
-    nexttile;
+    contourf(x,y,u(:,:,1)',250,'LineColor', 'none');
+    title("Pressure");
+    hold off
+
+    figure("Name", "U-velocity", "Position", [700 520 600 600]);
+    hold on
+    contourf(x,y,u(:,:,2)',250,'LineColor','none');
+    title("U-Velocity");
+        title("U-velocity, " + imax + " x " + jmax + " mesh, Re = 100, cfl = " + cfl + ", converged in " + n + " iterations");
+    hold off
+
+    figure("Name", "V-velocity", "Position", [1300 520 600 600]);
     hold on
     contourf(x,y,u(:,:,3)',250,'LineColor','none');
     title("V-velocity");
-        title(t, imax + " x " + jmax + " mesh, Re = 100, cfl = " + cfl + ", converged in " + n + " iterations");
-    nexttile;
-    hold on
-    contourf(x,y,u(:,:,1)',250,'LineColor','none');
-    title("Pressure");
     hold off
-    figure("Name", "2")
+
+    figure("Name", "Residuals", "Position", [100 -80 600 600]);
     semilogy(normvec);
+    writematrix(rot90(normvec), 'NormVectors.txt', 'Delimiter','tab');
+    writematrix(rot90(press), 'pressurematrix.txt', 'Delimiter', 'tab');
+    writematrix(rot90(uvelo), 'uvelocitymatrix.txt', 'Delimiter', 'tab');
+    writematrix(rot90(vvelo), 'vvelocity.txt', 'Delimiter', 'tab');
     fprintf('Solution converged in %d iterations!!!', n);
 end
 % Calculate and Write Out Discretization Error Norms (will do this for MMS only)
