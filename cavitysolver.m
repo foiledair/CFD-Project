@@ -293,9 +293,23 @@ end
 
 if isConverged == 1
     fprintf('Solution converged in %d iterations!!!', n);
-    contourf()
+    press = u(:,:,1);
+    uvelo = u(:,:,2);
+    vvelo = u(:,:,3);
+    x = linspace(1, imax, imax);
+    y = linspace(1, jmax, jmax);
+    figure("Position", [200 100 1500 800])
+    t = tiledlayout(1,2,"TileSpacing", "loose");
+    nexttile;
+    hold on
+    contourf(x,y,u(:,:,2),250,'LineColor', 'none');
+    title("U-velocity");
+    nexttile;
+    hold on
+    contourf(x,y,u(:,:,3),250,'LineColor','none');
+    title("V-velocity");
+    hold off
 end
-
 % Calculate and Write Out Discretization Error Norms (will do this for MMS only)
 Discretization_Error_Norms(rL1norm, rL2norm, rLinfnorm);
 
@@ -515,6 +529,46 @@ u(:,jmax,3) = 0;
 u(imax,:,3) = 0;
 u(1,:,3) = 0;
 u(:,1,3) = 0;
+
+%Pressure
+u(:,1,1) = two.*u(:,2,1) - u(:,3,1);
+u(:,jmax,1) = two.*u(:,jmax-1,1) - u(:,jmax-2,1);
+u(1,:,1) = two.*u(2,:,1)-u(3,:,1);
+u(imax,:,1) = two.*u(imax-1,:,1) - u(imax-2,:,1);
+
+% Art visc
+d4pdx4(2,:) = two.*d4pdx4(3,:) - d4pdx4(4,:);
+d4pdy4(2,:) = two.*d4pdy4(3,:) - d4pdy4(4,:);
+
+d4pdx4(imax-1,:) = 2*d4pdx4(jmax-2,:) - d4pdx4(jmax-3,:);
+d4pdy4(imax-1,:) = 2*d4pdy4(jmax-2,:) - d4pdy4(jmax-3,:);
+
+d4pdx4(:,2) = 2*d4pdx4(:,3) - d4pdx4(:,4);
+d4pdy4(:,2) = 2*d4pdy4(:,3) - d4pdy4(:,4);
+
+d4pdx4(:,imax-1) = 2*d4pdx4(:,jmax-2) - d4pdx4(:,jmax-3);
+d4pdy4(:,imax-1) = 2*d4pdy4(:,jmax-2) - d4pdy4(:,jmax-3);
+
+%Corners
+%BL
+d4pdx4(2,2) = ((two.*d4pdx4(3,2) - d4pdx4(4,2)) + (two.*d4pdx4(2,3) - d4pdx4(2,4)))./2;
+d4pdy4(2,2) = ((two.*d4pdy4(3,2) - d4pdy4(4,2)) + (two.*d4pdy4(2,3) - d4pdy4(2,4)))./2;
+%BR
+d4pdx4(imax-1,2) = ((two.*d4pdx4(imax-2,2) - d4pdx4(imax-3,2)) + (two.*d4pdx4(imax-1,3) - d4pdx4(imax-1,4)))./2;
+d4pdy4(imax-1,2) = ((two.*d4pdy4(imax-2,2) - d4pdy4(imax-3,2)) + (two.*d4pdy4(imax-1,3) - d4pdy4(imax-1,4)))./2;
+%TL
+d4pdx4(2,jmax-1) = ((two.*d4pdx4(2,jmax-2) - d4pdx4(2,jmax-3)) + (two.*d4pdx4(3,jmax-1) - d4pdx4(4,jmax-1)))./2;
+d4pdy4(2,jmax-1) = ((two.*d4pdy4(2,jmax-2) - d4pdy4(2,jmax-3)) + (two.*d4pdy4(3,jmax-1) - d4pdy4(4,jmax-1)))./2;
+%TR
+d4pdx4(imax-1,jmax-1) = ((two.*d4pdx4(imax-2,jmax-1) - d4pdx4(imax-3,jmax-1)) + (two.*d4pdx4(imax-1,jmax-2) - d4pdx4(imax-1,jmax-3)))./2;
+d4pdy4(imax-1,jmax-1) = ((two.*d4pdy4(imax-2,jmax-1) - d4pdy4(imax-3,jmax-1)) + (two.*d4pdy4(imax-1,jmax-2) - d4pdy4(imax-1,jmax-3)))./2;
+
+%Walls
+d4pdx4(1,:) = 0;
+d4pdy4(1,:) = 0;
+d4pdx4(:,1) = 0;
+d4pdy4(:,1) = 0;
+
 
 end
 %************************************************************************
@@ -940,18 +994,7 @@ for ycoord = 3:jmax-2
     end
 end
 
-% Boundary conditions
-d4pdx4(2,:) = 2*d4pdx4(3,:) - d4pdx4(4,:);
-d4pdy4(2,:) = 2*d4pdy4(3,:) - d4pdy4(4,:);
 
-d4pdx4(imax-1,:) = 2*d4pdx4(jmax-2,:) - d4pdx4(jmax-3,:);
-d4pdy4(imax-1,:) = 2*d4pdy4(jmax-2,:) - d4pdy4(jmax-3,:);
-
-d4pdx4(:,2) = 2*d4pdx4(:,3) - d4pdx4(:,4);
-d4pdy4(:,2) = 2*d4pdy4(:,3) - d4pdy4(:,4);
-
-d4pdx4(:,imax-1) = 2*d4pdx4(:,jmax-2) - d4pdx4(:,jmax-3);
-d4pdy4(:,imax-1) = 2*d4pdy4(:,jmax-2) - d4pdy4(:,jmax-3);
 
 %************************************************************************
 %function SGS_forward_sweep(~)
@@ -1105,11 +1148,6 @@ for xcoord = 2:jmax-1
     end
 end
 
-% Boundary conditions
-u(:,1,1) = two.*u(:,2,1) - u(:,3,1);
-u(:,jmax,1) = two.*u(:,jmax-1,1) - u(:,jmax-2,1);
-u(1,:,1) = two.*u(2,:,1)-u(3,:,1);
-u(imax,:,1) = two.*u(imax-1,:,1) - u(imax-2,:,1);
 
 
 end
