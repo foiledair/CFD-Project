@@ -27,8 +27,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 65;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
+imax = 33;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -63,7 +63,7 @@ irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 fo
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.1;      % CFL number used to determine time step
+cfl  = 0.2;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-5; 	% Tolerance for iterative residual convergence
@@ -274,6 +274,9 @@ for n = ninit:nmax
     if(conv<toler)
         fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3));
         isConverged = 1;
+        press = u(:,:,1);
+        uvelo = u(:,:,2);
+        vvelo = u(:,:,3);
         break;
     end
     
@@ -290,6 +293,7 @@ end
 
 if isConverged == 1
     fprintf('Solution converged in %d iterations!!!', n);
+    contourf()
 end
 
 % Calculate and Write Out Discretization Error Norms (will do this for MMS only)
@@ -877,10 +881,10 @@ for ycoord = 2:imax-1
         beta2(xcoord, ycoord) = max(u(xcoord, ycoord, 2)^two+u(xcoord,ycoord,3)^two, rkappa .* vel2ref);
         lambda_x(xcoord, ycoord) = half .* (abs(u(xcoord, ycoord, 2)) + sqrt(u(xcoord, ycoord, 2)^2 + four.*beta2(xcoord,ycoord)));
         lambda_y(xcoord, ycoord) = half .* (abs(u(xcoord, ycoord, 3)) + sqrt(u(xcoord, ycoord, 3)^2 + four.*beta2(xcoord,ycoord)));
-        lambda_max(xcoord, ycoord) = max(lambda_x(xcoord, ycoord), lambda_y(xcoord, ycoord));
-        deltatc(xcoord,ycoord) = min(dx, dy) ./ lambda_max(xcoord,ycoord);
+        lambda_max(xcoord, ycoord) = max(max(lambda_x(xcoord, ycoord), lambda_y(xcoord, ycoord)));
+        deltatc(xcoord,ycoord) = min(min(dx, dy)) ./ lambda_max(xcoord,ycoord);
         deltatd = (dx.*dy)./(4*nu);
-        dt(xcoord, ycoord) = cfl * min(deltatc(xcoord,ycoord), deltatd);
+        dt(xcoord, ycoord) = cfl * min(min((deltatc(xcoord,ycoord)), deltatd));
         dtmin(xcoord,ycoord) = dt(xcoord,ycoord);
     end
 end
@@ -1102,10 +1106,10 @@ for xcoord = 2:jmax-1
 end
 
 % Boundary conditions
-u(:,1,1) = two.*uold(:,2,1) - uold(:,3,1);
-u(:,jmax,1) = two.*uold(:,jmax-1,1) - uold(:,jmax-2,1);
-u(1,:,1) = two.*uold(2,:,1)-uold(3,:,1);
-u(imax,:,1) = two.*uold(imax-1,:,1) - uold(imax-2,:,1);
+u(:,1,1) = two.*u(:,2,1) - u(:,3,1);
+u(:,jmax,1) = two.*u(:,jmax-1,1) - u(:,jmax-2,1);
+u(1,:,1) = two.*u(2,:,1)-u(3,:,1);
+u(imax,:,1) = two.*u(imax-1,:,1) - u(imax-2,:,1);
 
 
 end
@@ -1212,7 +1216,7 @@ conv = max([conp, conx, cony]);
 % end
 if ( (mod(n,100)==0)||(n==ninit) )
     %fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3) );
-    fprintf('%d    %e   %d\n',n,conv, dtmin(n));
+    fprintf('%d    %e   %d\n',n,conv, max(max(dtmin)));
     % Maybe a need to format this better
 end
 
