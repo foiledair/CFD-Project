@@ -27,8 +27,11 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 33;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
+% Coarse: 33x33
+% Medium: 65x65
+% Fine: 129x129
+imax = 65;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -57,16 +60,16 @@ six    = 6.0;
 
 nmax = 100000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
-imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
+imms = 0;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
 irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 for initial run
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.2;      % CFL number used to determine time step
+cfl  = 0.5;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
-toler = 1.e-5; 	% Tolerance for iterative residual convergence
+toler = 1.e-8; 	% Tolerance for iterative residual convergence
 rkappa = 0.01;   	% Time derivative preconditioning constant
 Re = 100.0;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
@@ -292,10 +295,25 @@ if isConverged == 0
 end
 
 if isConverged == 1
+    press = u(:,:,1);
+    uvelo = u(:,:,2);
+    vvelo = u(:,:,3);
+    x = linspace(1, imax, imax);
+    y = linspace(1, jmax, jmax);
+    figure("Position", [200 100 1500 800])
+    t = tiledlayout(1,2,"TileSpacing", "loose");
+    nexttile;
+    hold on
+    contourf(x,y,u(:,:,2)',250,'LineColor', 'none');
+    title("U-velocity");
+    nexttile;
+    hold on
+    contourf(x,y,u(:,:,3)',250,'LineColor','none');
+    title("V-velocity");
+        title(t, imax + " x " + jmax + " mesh, Re = 100, cfl = " + cfl + ", converged in " + n + " iterations");
+    hold off
     fprintf('Solution converged in %d iterations!!!', n);
-    contourf()
 end
-
 % Calculate and Write Out Discretization Error Norms (will do this for MMS only)
 Discretization_Error_Norms(rL1norm, rL2norm, rLinfnorm);
 
@@ -515,6 +533,46 @@ u(:,jmax,3) = 0;
 u(imax,:,3) = 0;
 u(1,:,3) = 0;
 u(:,1,3) = 0;
+
+%Pressure
+u(:,1,1) = two.*u(:,2,1) - u(:,3,1);
+u(:,jmax,1) = two.*u(:,jmax-1,1) - u(:,jmax-2,1);
+u(1,:,1) = two.*u(2,:,1)-u(3,:,1);
+u(imax,:,1) = two.*u(imax-1,:,1) - u(imax-2,:,1);
+
+% % Art visc
+% d4pdx4(2,:) = two.*d4pdx4(3,:) - d4pdx4(4,:);
+% d4pdy4(2,:) = two.*d4pdy4(3,:) - d4pdy4(4,:);
+% 
+% d4pdx4(imax-1,:) = 2*d4pdx4(jmax-2,:) - d4pdx4(jmax-3,:);
+% d4pdy4(imax-1,:) = 2*d4pdy4(jmax-2,:) - d4pdy4(jmax-3,:);
+% 
+% d4pdx4(:,2) = 2*d4pdx4(:,3) - d4pdx4(:,4);
+% d4pdy4(:,2) = 2*d4pdy4(:,3) - d4pdy4(:,4);
+% 
+% d4pdx4(:,imax-1) = 2*d4pdx4(:,jmax-2) - d4pdx4(:,jmax-3);
+% d4pdy4(:,imax-1) = 2*d4pdy4(:,jmax-2) - d4pdy4(:,jmax-3);
+% 
+% %Corners
+% %BL
+% d4pdx4(2,2) = ((two.*d4pdx4(3,2) - d4pdx4(4,2)) + (two.*d4pdx4(2,3) - d4pdx4(2,4)))./2;
+% d4pdy4(2,2) = ((two.*d4pdy4(3,2) - d4pdy4(4,2)) + (two.*d4pdy4(2,3) - d4pdy4(2,4)))./2;
+% %BR
+% d4pdx4(imax-1,2) = ((two.*d4pdx4(imax-2,2) - d4pdx4(imax-3,2)) + (two.*d4pdx4(imax-1,3) - d4pdx4(imax-1,4)))./2;
+% d4pdy4(imax-1,2) = ((two.*d4pdy4(imax-2,2) - d4pdy4(imax-3,2)) + (two.*d4pdy4(imax-1,3) - d4pdy4(imax-1,4)))./2;
+% %TL
+% d4pdx4(2,jmax-1) = ((two.*d4pdx4(2,jmax-2) - d4pdx4(2,jmax-3)) + (two.*d4pdx4(3,jmax-1) - d4pdx4(4,jmax-1)))./2;
+% d4pdy4(2,jmax-1) = ((two.*d4pdy4(2,jmax-2) - d4pdy4(2,jmax-3)) + (two.*d4pdy4(3,jmax-1) - d4pdy4(4,jmax-1)))./2;
+% %TR
+% d4pdx4(imax-1,jmax-1) = ((two.*d4pdx4(imax-2,jmax-1) - d4pdx4(imax-3,jmax-1)) + (two.*d4pdx4(imax-1,jmax-2) - d4pdx4(imax-1,jmax-3)))./2;
+% d4pdy4(imax-1,jmax-1) = ((two.*d4pdy4(imax-2,jmax-1) - d4pdy4(imax-3,jmax-1)) + (two.*d4pdy4(imax-1,jmax-2) - d4pdy4(imax-1,jmax-3)))./2;
+% 
+% %Walls
+% d4pdx4(1,:) = 0;
+% d4pdy4(1,:) = 0;
+% d4pdx4(:,1) = 0;
+% d4pdy4(:,1) = 0;
+
 
 end
 %************************************************************************
@@ -940,9 +998,9 @@ for ycoord = 3:jmax-2
     end
 end
 
-% Boundary conditions
-d4pdx4(2,:) = 2*d4pdx4(3,:) - d4pdx4(4,:);
-d4pdy4(2,:) = 2*d4pdy4(3,:) - d4pdy4(4,:);
+% Art visc
+d4pdx4(2,:) = two.*d4pdx4(3,:) - d4pdx4(4,:);
+d4pdy4(2,:) = two.*d4pdy4(3,:) - d4pdy4(4,:);
 
 d4pdx4(imax-1,:) = 2*d4pdx4(jmax-2,:) - d4pdx4(jmax-3,:);
 d4pdy4(imax-1,:) = 2*d4pdy4(jmax-2,:) - d4pdy4(jmax-3,:);
@@ -952,6 +1010,28 @@ d4pdy4(:,2) = 2*d4pdy4(:,3) - d4pdy4(:,4);
 
 d4pdx4(:,imax-1) = 2*d4pdx4(:,jmax-2) - d4pdx4(:,jmax-3);
 d4pdy4(:,imax-1) = 2*d4pdy4(:,jmax-2) - d4pdy4(:,jmax-3);
+
+%Corners
+%BL
+d4pdx4(2,2) = ((two.*d4pdx4(3,2) - d4pdx4(4,2)) + (two.*d4pdx4(2,3) - d4pdx4(2,4)))./2;
+d4pdy4(2,2) = ((two.*d4pdy4(3,2) - d4pdy4(4,2)) + (two.*d4pdy4(2,3) - d4pdy4(2,4)))./2;
+%BR
+d4pdx4(imax-1,2) = ((two.*d4pdx4(imax-2,2) - d4pdx4(imax-3,2)) + (two.*d4pdx4(imax-1,3) - d4pdx4(imax-1,4)))./2;
+d4pdy4(imax-1,2) = ((two.*d4pdy4(imax-2,2) - d4pdy4(imax-3,2)) + (two.*d4pdy4(imax-1,3) - d4pdy4(imax-1,4)))./2;
+%TL
+d4pdx4(2,jmax-1) = ((two.*d4pdx4(2,jmax-2) - d4pdx4(2,jmax-3)) + (two.*d4pdx4(3,jmax-1) - d4pdx4(4,jmax-1)))./2;
+d4pdy4(2,jmax-1) = ((two.*d4pdy4(2,jmax-2) - d4pdy4(2,jmax-3)) + (two.*d4pdy4(3,jmax-1) - d4pdy4(4,jmax-1)))./2;
+%TR
+d4pdx4(imax-1,jmax-1) = ((two.*d4pdx4(imax-2,jmax-1) - d4pdx4(imax-3,jmax-1)) + (two.*d4pdx4(imax-1,jmax-2) - d4pdx4(imax-1,jmax-3)))./2;
+d4pdy4(imax-1,jmax-1) = ((two.*d4pdy4(imax-2,jmax-1) - d4pdy4(imax-3,jmax-1)) + (two.*d4pdy4(imax-1,jmax-2) - d4pdy4(imax-1,jmax-3)))./2;
+
+%Walls
+d4pdx4(1,:) = 0;
+d4pdy4(1,:) = 0;
+d4pdx4(:,1) = 0;
+d4pdy4(:,1) = 0;
+
+
 
 %************************************************************************
 %function SGS_forward_sweep(~)
@@ -1105,11 +1185,6 @@ for xcoord = 2:jmax-1
     end
 end
 
-% Boundary conditions
-u(:,1,1) = two.*u(:,2,1) - u(:,3,1);
-u(:,jmax,1) = two.*u(:,jmax-1,1) - u(:,jmax-2,1);
-u(1,:,1) = two.*u(2,:,1)-u(3,:,1);
-u(imax,:,1) = two.*u(imax-1,:,1) - u(imax-2,:,1);
 
 
 end
@@ -1178,6 +1253,9 @@ res_x = res_p; res_y = res_p;
 
 for ycoord = 2:jmax - 1
     for xcoord = 2:imax - 1
+        if n == 1
+            uold(:,:,:) = -99.9;
+        end
         
         % Pressure
         res_p(xcoord,ycoord) = (u(xcoord,ycoord,1)-uold(xcoord,ycoord,1))./(dt(xcoord,ycoord).*beta2(xcoord,ycoord));
@@ -1187,18 +1265,28 @@ for ycoord = 2:jmax - 1
         
         % Y-velocity
         res_y(xcoord,ycoord) = -rho.*(u(xcoord,ycoord,3)-uold(xcoord,ycoord,3))./(dt(xcoord,ycoord));
+   
     end
 end
 
 L2p = norm(res_p);
 L2x = norm(res_x);
 L2y = norm(res_y);
-
+% if L2p > 5e10
+%     disp("COCK");
+% elseif L2x > 5e10
+%     disp("SHITE");
+% elseif L2y > 5e10
+%     disp("FUCK");
+% else
+%     disp("Wee");
+% end
 if n == 1;
     L2pinit = norm(res_p);
     L2xinit = norm(res_x);
     L2yinit = norm(res_y);
 end
+%disp(L2pinit);
 res = [L2p, L2x, L2y];
 conp = L2p ./ L2pinit;
 conx = L2x ./ L2xinit;
