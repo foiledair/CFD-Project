@@ -66,7 +66,7 @@ irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 fo
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.9;      % CFL number used to determine time step
+cfl  = 0.7;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-8; 	% Tolerance for iterative residual convergence
@@ -1267,16 +1267,18 @@ for ycoord = 2:jmax - 1
 end
 
 %L2p = norm(res_p);
-L2p = sqrt((sum(abs(res_p), 'all')).^2/(numel(res_p)));
-L2x = sqrt((sum(abs(res_x), 'all')).^2/(numel(res_x)));
-L2y = sqrt((sum(abs(res_y), 'all')).^2/(numel(res_y)));
+% L2p = norm(res_p, 'fro');
+% L2x = norm(res_x, 'fro');
+L2p = sqrt(sum((res_p.^2), 'all')/numel(res_p));
+L2x = sqrt(sum((res_x.^2), 'all')/numel(res_x));
+L2y = sqrt(sum((res_y.^2), 'all')/numel(res_y));
 %L2x = norm(res_x);
 %L2y = norm(res_y);
 
 if n == 1;
-    L2pinit = sqrt((sum(abs(res_p), 'all')).^2/(numel(res_p)));
-    L2xinit = sqrt((sum(abs(res_x), 'all')).^2/(numel(res_x)));
-    L2yinit = sqrt((sum(abs(res_y), 'all')).^2/(numel(res_y)));
+    L2pinit = sqrt(sum((res_p.^2), 'all')/numel(res_p));
+    L2xinit = sqrt(sum((res_x.^2), 'all')/numel(res_x));
+    L2yinit = sqrt(sum((res_y.^2), 'all')/numel(res_y));
 end
 
 res = [L2p, L2x, L2y];
