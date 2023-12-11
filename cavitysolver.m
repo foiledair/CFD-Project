@@ -1,4 +1,4 @@
-function [PrsMatrix, uvelMatrix, vvelMatrix] = cavity_solver(~)
+ function [PrsMatrix, uvelMatrix, vvelMatrix] = cavity_solver(~)
 tic   %begin timer function
 %--- Variables for file handling ---
 %--- All files are globally accessible ---
@@ -30,8 +30,8 @@ global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 % Coarse: 33x33
 % Medium: 65x65
 % Fine: 129x129
-imax = 65;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
+imax = 33;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -66,7 +66,7 @@ irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 fo
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.5;      % CFL number used to determine time step
+cfl  = 0.9;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-8; 	% Tolerance for iterative residual convergence
@@ -222,6 +222,11 @@ compute_source_terms();
 %========== Main Loop ==========
 isConverged = 0;
 
+res_p = zeros(imax - 2);
+res_x = res_p; res_y = res_p;
+normvec = zeros(nmax, 3);
+close all
+
 for n = ninit:nmax
     % Calculate time step
     dtmin = compute_time_step(dtmin);
@@ -272,7 +277,7 @@ for n = ninit:nmax
     rtime = rtime + dtmin;
     
     % Check iterative convergence using L2 norms of iterative residuals
-    [res, resinit, conv] = check_iterative_convergence(n, res, resinit, ninit, rtime, dtmin);
+    [res, resinit, conv, normvec] = check_iterative_convergence(n, res, resinit, ninit, rtime, dtmin);
     
     if(conv<toler)
         fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3));
@@ -300,18 +305,31 @@ if isConverged == 1
     vvelo = u(:,:,3);
     x = linspace(1, imax, imax);
     y = linspace(1, jmax, jmax);
-    figure("Position", [200 100 1500 800])
-    t = tiledlayout(1,2,"TileSpacing", "loose");
-    nexttile;
+    figure("Name", "Pressure","Position", [100 520 600 600])
     hold on
-    contourf(x,y,u(:,:,2)',250,'LineColor', 'none');
-    title("U-velocity");
-    nexttile;
+    contourf(x,y,u(:,:,1)',250,'LineColor', 'none');
+    title("Pressure");
+    hold off
+
+    figure("Name", "U-velocity", "Position", [700 520 600 600]);
+    hold on
+    contourf(x,y,u(:,:,2)',250,'LineColor','none');
+    title("U-Velocity");
+        title("U-velocity, " + imax + " x " + jmax + " mesh, Re = 100, cfl = " + cfl + ", converged in " + n + " iterations");
+    hold off
+
+    figure("Name", "V-velocity", "Position", [1300 520 600 600]);
     hold on
     contourf(x,y,u(:,:,3)',250,'LineColor','none');
     title("V-velocity");
-        title(t, imax + " x " + jmax + " mesh, Re = 100, cfl = " + cfl + ", converged in " + n + " iterations");
     hold off
+
+    figure("Name", "Residuals", "Position", [100 -80 600 600]);
+    semilogy(normvec);
+    writematrix(rot90(normvec), 'NormVectors.txt', 'Delimiter','tab');
+    writematrix(rot90(press), 'pressurematrix.txt', 'Delimiter', 'tab');
+    writematrix(rot90(uvelo), 'uvelocitymatrix.txt', 'Delimiter', 'tab');
+    writematrix(rot90(vvelo), 'vvelocity.txt', 'Delimiter', 'tab');
     fprintf('Solution converged in %d iterations!!!', n);
 end
 % Calculate and Write Out Discretization Error Norms (will do this for MMS only)
@@ -540,38 +558,6 @@ u(:,jmax,1) = two.*u(:,jmax-1,1) - u(:,jmax-2,1);
 u(1,:,1) = two.*u(2,:,1)-u(3,:,1);
 u(imax,:,1) = two.*u(imax-1,:,1) - u(imax-2,:,1);
 
-% % Art visc
-% d4pdx4(2,:) = two.*d4pdx4(3,:) - d4pdx4(4,:);
-% d4pdy4(2,:) = two.*d4pdy4(3,:) - d4pdy4(4,:);
-% 
-% d4pdx4(imax-1,:) = 2*d4pdx4(jmax-2,:) - d4pdx4(jmax-3,:);
-% d4pdy4(imax-1,:) = 2*d4pdy4(jmax-2,:) - d4pdy4(jmax-3,:);
-% 
-% d4pdx4(:,2) = 2*d4pdx4(:,3) - d4pdx4(:,4);
-% d4pdy4(:,2) = 2*d4pdy4(:,3) - d4pdy4(:,4);
-% 
-% d4pdx4(:,imax-1) = 2*d4pdx4(:,jmax-2) - d4pdx4(:,jmax-3);
-% d4pdy4(:,imax-1) = 2*d4pdy4(:,jmax-2) - d4pdy4(:,jmax-3);
-% 
-% %Corners
-% %BL
-% d4pdx4(2,2) = ((two.*d4pdx4(3,2) - d4pdx4(4,2)) + (two.*d4pdx4(2,3) - d4pdx4(2,4)))./2;
-% d4pdy4(2,2) = ((two.*d4pdy4(3,2) - d4pdy4(4,2)) + (two.*d4pdy4(2,3) - d4pdy4(2,4)))./2;
-% %BR
-% d4pdx4(imax-1,2) = ((two.*d4pdx4(imax-2,2) - d4pdx4(imax-3,2)) + (two.*d4pdx4(imax-1,3) - d4pdx4(imax-1,4)))./2;
-% d4pdy4(imax-1,2) = ((two.*d4pdy4(imax-2,2) - d4pdy4(imax-3,2)) + (two.*d4pdy4(imax-1,3) - d4pdy4(imax-1,4)))./2;
-% %TL
-% d4pdx4(2,jmax-1) = ((two.*d4pdx4(2,jmax-2) - d4pdx4(2,jmax-3)) + (two.*d4pdx4(3,jmax-1) - d4pdx4(4,jmax-1)))./2;
-% d4pdy4(2,jmax-1) = ((two.*d4pdy4(2,jmax-2) - d4pdy4(2,jmax-3)) + (two.*d4pdy4(3,jmax-1) - d4pdy4(4,jmax-1)))./2;
-% %TR
-% d4pdx4(imax-1,jmax-1) = ((two.*d4pdx4(imax-2,jmax-1) - d4pdx4(imax-3,jmax-1)) + (two.*d4pdx4(imax-1,jmax-2) - d4pdx4(imax-1,jmax-3)))./2;
-% d4pdy4(imax-1,jmax-1) = ((two.*d4pdy4(imax-2,jmax-1) - d4pdy4(imax-3,jmax-1)) + (two.*d4pdy4(imax-1,jmax-2) - d4pdy4(imax-1,jmax-3)))./2;
-% 
-% %Walls
-% d4pdx4(1,:) = 0;
-% d4pdy4(1,:) = 0;
-% d4pdx4(:,1) = 0;
-% d4pdy4(:,1) = 0;
 
 
 end
@@ -934,8 +920,8 @@ lambda_max = lambda_x;
 dt = zeros(imax - 2);
 
 nu = rmu./rho;
-for ycoord = 2:imax-1
-    for xcoord = 2:jmax-1
+for ycoord = 2:jmax-1
+    for xcoord = 2:imax-1
         beta2(xcoord, ycoord) = max(u(xcoord, ycoord, 2)^two+u(xcoord,ycoord,3)^two, rkappa .* vel2ref);
         lambda_x(xcoord, ycoord) = half .* (abs(u(xcoord, ycoord, 2)) + sqrt(u(xcoord, ycoord, 2)^2 + four.*beta2(xcoord,ycoord)));
         lambda_y(xcoord, ycoord) = half .* (abs(u(xcoord, ycoord, 3)) + sqrt(u(xcoord, ycoord, 3)^2 + four.*beta2(xcoord,ycoord)));
@@ -987,12 +973,12 @@ global lambda_x lambda_y lambda_max beta2
 
 for ycoord = 3:jmax-2
     for xcoord = 3:imax-2
-        d4pdx4(xcoord, ycoord) = (u(xcoord,ycoord+2,3)-four.*u(xcoord, ycoord+1,3) + ...
-            six.*u(xcoord, ycoord,3) - four.*u(xcoord, ycoord-1,3) + ...
-            u(xcoord, ycoord-2,3))./(dx.^four);
-        d4pdy4(xcoord, ycoord) = (u(xcoord+2,ycoord,3)-four.*u(xcoord+1, ycoord,3) + ...
-            six.*u(xcoord, ycoord,3) - four.*u(xcoord-1, ycoord,3) + ...
-            u(xcoord-2, ycoord,3))./(dy.^four);
+        d4pdx4(xcoord, ycoord) = (u(xcoord,ycoord+2,1)-four.*u(xcoord, ycoord+1,1) + ...
+            six.*u(xcoord, ycoord,1) - four.*u(xcoord, ycoord-1,1) + ...
+            u(xcoord, ycoord-2,1))./(dx.^four);
+        d4pdy4(xcoord, ycoord) = (u(xcoord+2,ycoord,1)-four.*u(xcoord+1, ycoord,1) + ...
+            six.*u(xcoord, ycoord,1) - four.*u(xcoord-1, ycoord,1) + ...
+            u(xcoord-2, ycoord,1))./(dy.^four);
         artviscx(xcoord, ycoord) = -lambda_x(xcoord, ycoord).*Cx.*dx^3./beta2(xcoord,ycoord).*d4pdx4(xcoord,ycoord); 
         artviscy(xcoord, ycoord) = -lambda_y(xcoord, ycoord).*Cy.*dy.^3./beta2(xcoord,ycoord).*d4pdy4(xcoord,ycoord);
     end
@@ -1146,8 +1132,8 @@ global u uold artviscx artviscy dt s
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
-for xcoord = 2:jmax-1
-    for ycoord = 2:imax-1
+for ycoord = 2:jmax-1
+    for xcoord = 2:imax-1
         % Pressure
 %         term1 = uold(xcoord,ycoord,1);
 %         term2 = -beta2(xcoord,ycoord).*dt(xcoord,ycoord);
@@ -1224,8 +1210,8 @@ u(i,j,1) = u(i,j,1) - deltap;
 
 end
 %************************************************************************
-function [res, resinit, conv] = check_iterative_convergence...
-    (n, res, resinit, ninit, rtime, dtmin)
+function [res, resinit, conv, normvec] = check_iterative_convergence...
+    (n, res, resinit, ninit, rtime, dtmin, res_p, res_x, res_y, normvec)
 %
 %Uses global variable(s): zero
 %Uses global variable(s): imax, jmax, neq, fsmall
@@ -1236,7 +1222,7 @@ function [res, resinit, conv] = check_iterative_convergence...
 % j                        % j index (y direction)
 % k                        % k index (# of equations)
 
-global zero beta2 L2init
+global zero beta2 L2init nmax res_p res_x res_y normvec
 global imax jmax neq fsmall rho
 global u uold dt fp1
 global L2pinit L2xinit L2yinit
@@ -1247,8 +1233,7 @@ global L2pinit L2xinit L2yinit
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-res_p = zeros(imax - 2);
-res_x = res_p; res_y = res_p;
+
 
 
 for ycoord = 2:jmax - 1
@@ -1272,25 +1257,18 @@ end
 L2p = norm(res_p);
 L2x = norm(res_x);
 L2y = norm(res_y);
-% if L2p > 5e10
-%     disp("COCK");
-% elseif L2x > 5e10
-%     disp("SHITE");
-% elseif L2y > 5e10
-%     disp("FUCK");
-% else
-%     disp("Wee");
-% end
+
 if n == 1;
     L2pinit = norm(res_p);
     L2xinit = norm(res_x);
     L2yinit = norm(res_y);
 end
-%disp(L2pinit);
+
 res = [L2p, L2x, L2y];
 conp = L2p ./ L2pinit;
 conx = L2x ./ L2xinit;
 cony = L2y ./ L2yinit;
+normvec(n,:) = [conp conx cony];
 conv = max([conp, conx, cony]);
 
 
