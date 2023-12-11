@@ -30,8 +30,8 @@ global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 % Coarse: 33x33
 % Medium: 65x65
 % Fine: 129x129
-imax = 65;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
+imax = 129;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 129;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -66,7 +66,7 @@ irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 fo
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.5;      % CFL number used to determine time step
+cfl  = 0.9;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-8; 	% Tolerance for iterative residual convergence
