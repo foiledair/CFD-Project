@@ -347,7 +347,6 @@ if isConverged == 1
 end
 % Calculate and Write Out Discretization Error Norms (will do this for MMS only)
 Discretization_Error_Norms(rL1norm, rL2norm, rLinfnorm);
-discerr = nonzeros(discerr);
 writematrix(discerr, 'z_DE.txt', 'Delimiter', 'tab');
 
 % Output solution and restart file
@@ -1331,7 +1330,7 @@ function [discerr] = Discretization_Error_Norms(rL1norm, rL2norm, rLinfnorm)
 % y        % Temporary variable for y location
 % DE   	% Discretization error (absolute value)
 
-global zero imax jmax neq imms xmax xmin ymax ymin u discerr umms
+global zero imax jmax neq imms xmax xmin ymax ymin u discerr ummsArray s
 
 if imms==1
 
@@ -1339,13 +1338,10 @@ if imms==1
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 discerr = zeros(imax, neq);
-for mode = 1:3
-    %tempbucket(i,j,m) = u(i,j,k) - umms(i,j,k);
     
-        discerr(:, mode) = u(:,jmax-1,mode) - umms(:,jmax-1,mode);
-    
-end
-    
+discerr(:,1) = u(:,jmax-1,1) - ummsArray(:,jmax-1,1);
+discerr(:,2) = u(:,jmax-1,2) - ummsArray(:,jmax-1,2);
+discerr(:,3) = u(:,jmax-1,3) - ummsArray(:,jmax-1,3);
 
 
 
