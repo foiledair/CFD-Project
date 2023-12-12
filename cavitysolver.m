@@ -1,4 +1,5 @@
  function [PrsMatrix, uvelMatrix, vvelMatrix] = cavity_solver(~)
+ clear all; clc; close all
 tic   %begin timer function
 %--- Variables for file handling ---
 %--- All files are globally accessible ---
@@ -30,8 +31,8 @@ global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 % Coarse: 33x33
 % Medium: 65x65
 % Fine: 129x129
-imax = 65;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
+imax = 33;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -66,11 +67,11 @@ irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 fo
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.7;      % CFL number used to determine time step
-Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
-Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
-toler = 1.e-8; 	% Tolerance for iterative residual convergence
-rkappa = 0.001;   	% Time derivative preconditioning constant
+cfl  = 0.9;      % CFL number used to determine time step
+Cx = 0.001;     	% Parameter for 4th order artificial viscosity in x
+Cy = 0.001;      	% Parameter for 4th order artificial viscosity in y
+toler = 1.e-6; 	% Tolerance for iterative residual convergence
+rkappa = 0.01;   	% Time derivative preconditioning constant
 Re = 100.0;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
 uinf = 1.0;      % Lid velocity (m/s)
@@ -337,6 +338,11 @@ if isConverged == 1
     figure("Name", "Residuals", "Position", [100 -80 600 600]);
     semilogy(normvec);
 
+    % Convert to TecPlot format
+    press = conv2tecplot(press);
+    uvelo = conv2tecplot(uvelo);
+    vvelo = conv2tecplot(vvelo);
+
     % Export results
     writematrix(normvec, 'z_NormVectors.txt', 'Delimiter','tab');
     writematrix(rot90(press), 'z_pressurematrix.txt', 'Delimiter', 'tab');
@@ -367,6 +373,29 @@ end
 
 %**************************************************************************
 %**************************************************************************
+
+function [output] = conv2tecplot(input)
+% This function converts matrix output to (x,y,z) output, suitable for
+% directly importing into TecPlot.
+
+    icount = 1:length(input);
+    jcount = icount;
+
+    output = zeros(icount(end),3);
+    n = 0;
+    size = 0.05;
+    for y = 1:jcount(end)
+        for x = 1:icount(end)
+            n = n + 1;
+            a = x .* (size./length(icount));
+            b = y .* (size./length(jcount));;
+            c = input(x,y);
+            output(n,:) = [a,b,c]';
+        end
+    end
+end
+
+
 function set_derived_inputs(~)
 global imax jmax
 global one
@@ -1298,7 +1327,7 @@ conv = max([conp, conx, cony]);
 %     fprintf('%d   %e   %e   %e   %e   %e\n',n, rtime, dtmin, res(1), res(2), res(3) );
 %     % Maybe a need to format this better
 % end
-if ( (mod(n,25)==0)||(n==ninit) )
+if ( (mod(n,10)==0)||(n==ninit) )
     %fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3) );
     fprintf('%d    %e   %d\n',n,conv, oldconv - conv);
     % Maybe a need to format this better
