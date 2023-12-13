@@ -31,8 +31,8 @@ global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 % Coarse: 33x33
 % Medium: 65x65
 % Fine: 129x129
-imax = 33;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
+imax = 65;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -68,10 +68,10 @@ ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
 cfl  = 0.9;      % CFL number used to determine time step
-Cx = 0.001;     	% Parameter for 4th order artificial viscosity in x
-Cy = 0.001;      	% Parameter for 4th order artificial viscosity in y
-toler = 1.e-6; 	% Tolerance for iterative residual convergence
-rkappa = 0.01;   	% Time derivative preconditioning constant
+Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
+Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
+toler = 1.e-8; 	% Tolerance for iterative residual convergence
+rkappa = 0.001;   	% Time derivative preconditioning constant
 Re = 100.0;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
 uinf = 1.0;      % Lid velocity (m/s)
@@ -338,11 +338,6 @@ if isConverged == 1
     figure("Name", "Residuals", "Position", [100 -80 600 600]);
     semilogy(normvec);
 
-    % Convert to TecPlot format
-    press = conv2tecplot(press);
-    uvelo = conv2tecplot(uvelo);
-    vvelo = conv2tecplot(vvelo);
-
     % Export results
     writematrix(normvec, 'z_NormVectors.txt', 'Delimiter','tab');
     writematrix(rot90(press), 'z_pressurematrix.txt', 'Delimiter', 'tab');
@@ -372,29 +367,7 @@ end
 %**************************************************************************/
 
 %**************************************************************************
-%**************************************************************************
-
-function [output] = conv2tecplot(input)
-% This function converts matrix output to (x,y,z) output, suitable for
-% directly importing into TecPlot.
-
-    icount = 1:length(input);
-    jcount = icount;
-
-    output = zeros(icount(end),3);
-    n = 0;
-    size = 0.05;
-    for y = 1:jcount(end)
-        for x = 1:icount(end)
-            n = n + 1;
-            a = x .* (size./length(icount));
-            b = y .* (size./length(jcount));;
-            c = input(x,y);
-            output(n,:) = [a,b,c]';
-        end
-    end
-end
-
+%************************************************************************** 
 
 function set_derived_inputs(~)
 global imax jmax
