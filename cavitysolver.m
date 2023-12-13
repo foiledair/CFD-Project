@@ -1,4 +1,5 @@
  function [PrsMatrix, uvelMatrix, vvelMatrix] = cavity_solver(~)
+ clear all; clc; close all
 tic   %begin timer function
 %--- Variables for file handling ---
 %--- All files are globally accessible ---
@@ -30,8 +31,8 @@ global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 % Coarse: 33x33
 % Medium: 65x65
 % Fine: 129x129
-imax = 33;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
+imax = 65;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 65;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -70,7 +71,7 @@ cfl  = 0.9;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-8; 	% Tolerance for iterative residual convergence
-rkappa = 0.01;   	% Time derivative preconditioning constant
+rkappa = 0.001;   	% Time derivative preconditioning constant
 Re = 100.0;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
 uinf = 1.0;      % Lid velocity (m/s)
@@ -300,17 +301,25 @@ if isConverged == 0
 end
 
 if isConverged == 1
+    
+    % We weren't sure how the results were being exported, so we wrote
+    % our own, since we would be more familiar with how we did it our way
+
+    % Separate u matrix into several smaller matrices (3d => 2d)
     press = u(:,:,1);
     uvelo = u(:,:,2);
     vvelo = u(:,:,3);
     x = linspace(1, imax, imax);
     y = linspace(1, jmax, jmax);
+
+    % Plot pressure
     figure("Name", "Pressure","Position", [100 520 600 600])
     hold on
     contourf(x,y,u(:,:,1)',250,'LineColor', 'none');
     title("Pressure");
     hold off
 
+    % Plot x-velocity
     figure("Name", "U-velocity", "Position", [700 520 600 600]);
     hold on
     contourf(x,y,u(:,:,2)',250,'LineColor','none');
@@ -318,18 +327,22 @@ if isConverged == 1
         title("U-velocity, " + imax + " x " + jmax + " mesh, Re = 100, cfl = " + cfl + ", converged in " + n + " iterations");
     hold off
 
+    % Plot v-velocity
     figure("Name", "V-velocity", "Position", [1300 520 600 600]);
     hold on
     contourf(x,y,u(:,:,3)',250,'LineColor','none');
     title("V-velocity");
     hold off
-
+    
+    % Plot residuals
     figure("Name", "Residuals", "Position", [100 -80 600 600]);
     semilogy(normvec);
-    writematrix(rot90(normvec), 'NormVectors.txt', 'Delimiter','tab');
-    writematrix(rot90(press), 'pressurematrix.txt', 'Delimiter', 'tab');
-    writematrix(rot90(uvelo), 'uvelocitymatrix.txt', 'Delimiter', 'tab');
-    writematrix(rot90(vvelo), 'vvelocity.txt', 'Delimiter', 'tab');
+
+    % Export results
+    writematrix(normvec, 'z_NormVectors.txt', 'Delimiter','tab');
+    writematrix(rot90(press), 'z_pressurematrix.txt', 'Delimiter', 'tab');
+    writematrix(rot90(uvelo), 'z_uvelocitymatrix.txt', 'Delimiter', 'tab');
+    writematrix(rot90(vvelo), 'z_vvelocity.txt', 'Delimiter', 'tab');
     fprintf('Solution converged in %d iterations!!!', n);
 end
 % Calculate and Write Out Discretization Error Norms (will do this for MMS only)
@@ -354,7 +367,8 @@ end
 %**************************************************************************/
 
 %**************************************************************************
-%**************************************************************************
+%************************************************************************** 
+
 function set_derived_inputs(~)
 global imax jmax
 global one
@@ -1222,7 +1236,7 @@ function [res, resinit, conv, normvec] = check_iterative_convergence...
 % j                        % j index (y direction)
 % k                        % k index (# of equations)
 
-global zero beta2 L2init nmax res_p res_x res_y normvec
+global zero beta2 L2init nmax res_p res_x res_y normvec conv
 global imax jmax neq fsmall rho
 global u uold dt fp1
 global L2pinit L2xinit L2yinit
@@ -1234,7 +1248,7 @@ global L2pinit L2xinit L2yinit
 % !************************************************************** */
 
 
-
+oldconv = conv;
 
 for ycoord = 2:jmax - 1
     for xcoord = 2:imax - 1
@@ -1254,14 +1268,19 @@ for ycoord = 2:jmax - 1
     end
 end
 
-L2p = norm(res_p);
-L2x = norm(res_x);
-L2y = norm(res_y);
+%L2p = norm(res_p);
+% L2p = norm(res_p, 'fro');
+% L2x = norm(res_x, 'fro');
+L2p = sqrt(sum((res_p.^2), 'all')/numel(res_p));
+L2x = sqrt(sum((res_x.^2), 'all')/numel(res_x));
+L2y = sqrt(sum((res_y.^2), 'all')/numel(res_y));
+%L2x = norm(res_x);
+%L2y = norm(res_y);
 
 if n == 1;
-    L2pinit = norm(res_p);
-    L2xinit = norm(res_x);
-    L2yinit = norm(res_y);
+    L2pinit = sqrt(sum((res_p.^2), 'all')/numel(res_p));
+    L2xinit = sqrt(sum((res_x.^2), 'all')/numel(res_x));
+    L2yinit = sqrt(sum((res_y.^2), 'all')/numel(res_y));
 end
 
 res = [L2p, L2x, L2y];
@@ -1274,15 +1293,16 @@ conv = max([conp, conx, cony]);
 
 
 
+
 % Write iterative residuals every 10 iterations
 % if ( (mod(n,10)==0)||(n==ninit) )
 %     fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3) );
 %     fprintf('%d   %e   %e   %e   %e   %e\n',n, rtime, dtmin, res(1), res(2), res(3) );
 %     % Maybe a need to format this better
 % end
-if ( (mod(n,100)==0)||(n==ninit) )
+if ( (mod(n,10)==0)||(n==ninit) )
     %fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3) );
-    fprintf('%d    %e   %d\n',n,conv, max(max(dtmin)));
+    fprintf('%d    %e   %d\n',n,conv, oldconv - conv);
     % Maybe a need to format this better
 end
 
